@@ -77,9 +77,10 @@ void CarPawnSimApi::updateRendering(float dt)
     }
 }
 
+const bool RUN_AI = true;
 void CarPawnSimApi::updateCarControls()
 {
-    auto rc_data = getRCData();
+    auto rc_data = getRCData(
 
     if (rc_data.is_initialized) {
         if (!rc_data.is_valid) {
@@ -129,7 +130,14 @@ void CarPawnSimApi::updateCarControls()
 
         current_controls_ = joystick_controls_;
     }
-    else {
+	else if (RUN_AI) {
+		CarPawnApi::CarControls ai_controls = {};
+		ai_controls.brake = 0.0f;
+		ai_controls.steering = -30.0f;
+		ai_controls.gear_immediate = true;
+		ai_controls.throttle = 0.99f;
+		current_controls_ = ai_controls;
+	} else {
         UAirBlueprintLib::LogMessageString("Control Mode: ", "Keyboard", LogDebugLevel::Informational);
         current_controls_ = keyboard_controls_;
     }

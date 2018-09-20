@@ -80,7 +80,7 @@ void CarPawnSimApi::updateRendering(float dt)
 const bool RUN_AI = true;
 void CarPawnSimApi::updateCarControls()
 {
-    auto rc_data = getRCData(
+	auto rc_data = getRCData();
 
     if (rc_data.is_initialized) {
         if (!rc_data.is_valid) {

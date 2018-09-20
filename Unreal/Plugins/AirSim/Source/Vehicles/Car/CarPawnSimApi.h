@@ -8,6 +8,7 @@
 #include "PawnEvents.h"
 #include "PawnSimApi.h"
 #include "vehicles/car/api/CarApiBase.hpp"
+#include "safety/Path.hpp"
 #include "physics//Kinematics.hpp"
 #include "common/Common.hpp"
 #include "common/CommonStructs.hpp"
@@ -52,7 +53,7 @@ private:
 
     //storing reference from pawn
     const CarPawnApi::CarControls& keyboard_controls_;
-
+	Path path_;
     CarPawnApi::CarControls joystick_controls_;
     CarPawnApi::CarControls current_controls_;
 };

@@ -39,6 +39,8 @@
 #include "AirBlueprintLib.h"
 #include "UnrealSensors/UnrealSensorFactory.h"
 #include "safety/Plan.hpp"
+#include "common/Geom.hpp"
+
 //#include "CarPawnApi.h"
 #include <exception>
 #include <set>
@@ -62,10 +64,10 @@ struct Mob { // Mobile entity
 };
 */
 	void Plan::setMob(double x, double y, double vx, double vy) {
-		m_vehicle = { x,y,vx,vy };
+		m_vehicle = Mob(pt2(x,y),pt2(vx,vy));
 	}
 	void Plan::jumpMob(double x, double y) {
-		m_vehicle = { x,y,0,0 };
+		m_vehicle = Mob(pt2(x,y),pt2(0,0));
 	}
 	int Plan::addNode(NodeDatum nd) { return addNode(vector<int>(),nd); }
 	int Plan::addNode(int pred, NodeDatum nd) { return addNode(vector<int>(pred),nd); }
@@ -137,7 +139,7 @@ struct Mob { // Mobile entity
 		pt2 v = m.v;
 		double minMetric = std::numeric_limits<double>::infinity();
 		double minSin = 0.0;
-		pt2 minPoint = {};
+		pt2 minPoint = {0,0};
 		auto succs = getSuccs(curr);
 		if (succs.empty()) {
 			return FAILURE;
@@ -145,9 +147,9 @@ struct Mob { // Mobile entity
 		for (auto it = succs.begin(); it != succs.end(); it++) {
 			int i = *it;
 			auto node = m_nodeData[i];
-			auto nRel = dif2(node.p, m.p);
-			auto sin = sin2(nRel, v);
-			auto dist = mag2(nRel);
+			auto nRel = node.p - m.p;
+			auto sin = nRel.sin2(v);
+			auto dist = nRel.mag();
 			auto metr = sin * dist;
 			if (metr < minMetric) {
 				minMetric = metr;
@@ -207,7 +209,7 @@ struct Mob { // Mobile entity
 		int i = 0;
 		do {
 			mX += deltaX; mY += deltaY;
-			NodeDatum curDatum = { mX, mY, rad };
+			NodeDatum curDatum = { {mX, mY}, rad };
 			curNode = addNode(curNode, curDatum);
 		} while (++i < PRECISION);
 	}

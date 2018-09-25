@@ -9,8 +9,7 @@ using namespace msr::airlib;
 CarPawnSimApi::CarPawnSimApi(const Params& params,
 	const CarPawnApi::CarControls&  keyboard_controls, UWheeledVehicleMovementComponent* movement)
 	: PawnSimApi(params),
-	keyboard_controls_(keyboard_controls),
-	plan_()
+	keyboard_controls_(keyboard_controls)
 {
 	createVehicleApi(static_cast<ACarPawn*>(params.pawn), params.home_geopoint);
 
@@ -19,7 +18,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	joystick_controls_ = CarPawnApi::CarControls();
 	// car position and driveable area are from unreal editor level...
 	plan_.jumpMob(56.900, -1.000); // m
-	NodeDatum startDatum = { 56.9, -1.0, rad };
+	NodeDatum startDatum = { {56.9, -1.0}, rad };
 	plan_.addNode(startDatum);
 	plan_.lineTo(rad, 67.00, 30.50, 67.00, -150.45);
 	plan_.lineTo(rad, 212.80, 31.80, 67.00, 30.50);
@@ -171,16 +170,13 @@ void CarPawnSimApi::updateCarControls()
 		auto pos = st.kinematics_estimated.pose.position;
 		auto vel = st.kinematics_estimated.twist.linear;
 		plan_.setMob(pos[0], pos[1], vel[0], vel[1]);
-		pt2 way;
+		pt2 way = {0,0};
 		if (Plan::SUCCESS != plan_.getWaypoint(way))
 			break;
-		pt2 dif2(pt2 x, pt2 y);
-		double mag2(pt2 x);
-		bool isLeftOf(pt2 x, pt2 y);
-		bool goLeft = isLeftOf(way, { vel[0], vel[1] });
+		bool goLeft = way.isLeftOf({ vel[0], vel[1] });
 		auto acc = 0.15f;
 		auto br = 0.2f;
-		auto dist = mag2(dif2({ pos[0],pos[1] }, way));
+		auto dist = (pt2(pos[0],pos[1]) - way).mag();
 		auto ep = 1.0 / GAverageFPS;
 		auto vv = st.speed + acc * ep;
 		auto dd = dist - (ep * st.speed + ep * ep * 0.5f * acc);

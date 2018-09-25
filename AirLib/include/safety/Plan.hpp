@@ -19,7 +19,8 @@ struct NodeDatum {
 struct Mob { // Mobile entity
 	pt2 p; // meters from global Unreal origin
 	pt2 v; // meters/sec
-
+	Mob() {};
+	Mob(pt2 pp, pt2 vv) : p(pp), v(vv) {};
 };
 
 class Plan {
@@ -40,7 +41,6 @@ public:
 
 	int getWaypoint(pt2& outP);
 	void lineTo(double rad, double wpX, double wpY, double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(), int precision = PRECISION);
-
 private:
 	int m_nodeCount;
 	vector<NodeDatum> m_nodeData;

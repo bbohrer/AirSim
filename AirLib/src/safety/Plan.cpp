@@ -129,32 +129,7 @@ struct Mob { // Mobile entity
 	
 	std::vector<int>& Plan::getSuccs(int node) { return m_adj[node]; }
 
-	double dot2(pt2 L, pt2 R) {
-		return L.x*R.x + L.y + R.y;
-	}
-
-	double mag2(pt2 p) {
-		return sqrt(p.x*p.x + p.y*p.y);
-	}
-
-	double cos2(pt2 L, pt2 R) {
-		return dot2(L, R) / (mag2(L)*mag2(R));
-	}
-	double sin2(pt2 L, pt2 R) {
-		auto cos = cos2(L, R);
-		return sqrt(1 - cos * cos);
-	}
-
-	bool isLeftOf(pt2 u, pt2 v) {
-		if (v.x >= 0) {
-			return v.x*u.y > u.x*v.y;
-		} else {
-			return v.x*u.y < u.x*v.y;
-		}
-	}
-
-	pt2 dif2(pt2 L, pt2 R) { return { L.x - R.x, L.y - R.y }; }
-
+	
 	int Plan::getWaypoint(pt2& outP) {
 		auto curr = getCurNode();
 		auto currData = m_nodeData[curr];

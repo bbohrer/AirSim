@@ -1,5 +1,6 @@
 #pragma once
 #include "AirBlueprintLib.h"
+#include "common/Geom.hpp"
 #include "UnrealSensors/UnrealSensorFactory.h"
 //#include "CarPawnApi.h"
 #include <exception>
@@ -9,7 +10,6 @@ extern float GAverageFPS;
 
 using namespace msr::airlib;
 
-typedef struct { double x; double y; } pt2;
 
 struct NodeDatum {
 	pt2 p; // meters from global Unreal origin

@@ -8,8 +8,8 @@
 #include "PawnEvents.h"
 #include "PawnSimApi.h"
 #include "vehicles/car/api/CarApiBase.hpp"
-#include "safety/Path.hpp"
-#include "physics//Kinematics.hpp"
+#include "safety/Plan.hpp"
+#include "physics/Kinematics.hpp"
 #include "common/Common.hpp"
 #include "common/CommonStructs.hpp"
 

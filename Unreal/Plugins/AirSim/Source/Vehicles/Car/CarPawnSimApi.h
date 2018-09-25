@@ -53,7 +53,7 @@ private:
 
     //storing reference from pawn
     const CarPawnApi::CarControls& keyboard_controls_;
-	Path path_;
+	Plan plan_;
     CarPawnApi::CarControls joystick_controls_;
     CarPawnApi::CarControls current_controls_;
 };

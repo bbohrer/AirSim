@@ -38,6 +38,7 @@
 //#include "CarPawnSimApi.h"
 #include "AirBlueprintLib.h"
 #include "UnrealSensors/UnrealSensorFactory.h"
+#include "safety/Plan.hpp"
 //#include "CarPawnApi.h"
 #include <exception>
 #include <set>
@@ -46,7 +47,8 @@ extern float GAverageFPS = 0.0f;
 
 using namespace msr::airlib;
 
-struct NodeDatum {
+
+/*struct NodeDatum {
 	double x;   // meters from global Unreal origin
 	double y;   // meters from global Unreal origin
 	double rad; // meters
@@ -58,18 +60,16 @@ struct Mob { // Mobile entity
 	double vx;
 	double vy;
 };
-
-class Plan {
-public:
-	void setMob(double x, double y, double vx, double vy) {
+*/
+	void Plan::setMob(double x, double y, double vx, double vy) {
 		m_vehicle = { x,y,vx,vy };
 	}
-	void jumpMob(double x, double y) {
+	void Plan::jumpMob(double x, double y) {
 		m_vehicle = { x,y,0,0 };
 	}
-	int addNode(NodeDatum nd) { return addNode(vector<int>(),nd); }
-	int addNode(int pred, NodeDatum nd) { return addNode(vector<int>(pred),nd); }
-	int addNode(vector<int> preds, NodeDatum nd) {
+	int Plan::addNode(NodeDatum nd) { return addNode(vector<int>(),nd); }
+	int Plan::addNode(int pred, NodeDatum nd) { return addNode(vector<int>(pred),nd); }
+	int Plan::addNode(vector<int> preds, NodeDatum nd) {
 		int thisNode = m_nodeCount++;
 		for (auto it = preds.begin(); it != preds.end(); it++) {
 			m_adj[*it].push_back(thisNode);
@@ -80,7 +80,7 @@ public:
 	
 	// Meaning that we will never run out of places to go regardless of
 	// which branches we take
-	bool isRecurrent() {
+	bool Plan::isRecurrent() {
 		for (auto it = m_adj.begin(); it != m_adj.end(); it++) {
 			if (it->size() == 0) {
 				return false;
@@ -89,7 +89,7 @@ public:
 		return true;
 	}
 
-	bool isAtDeadEnd() {
+	bool Plan::isAtDeadEnd() {
 		std::set<int> nodesAt;
 		for (int i = 0; i < m_nodeCount; i++) {
 			if (nodeContains(i, m_vehicle)) {
@@ -127,10 +127,67 @@ public:
 	static const int PRECISION = 10;	
 	static const int SUCCESS = 0;
 	
+	std::vector<int>& Plan::getSuccs(int node) { return m_adj[node]; }
+
+	double dot2(pt2 L, pt2 R) {
+		return L.x*R.x + L.y + R.y;
+	}
+
+	double mag2(pt2 p) {
+		return sqrt(p.x*p.x + p.y*p.y);
+	}
+
+	double cos2(pt2 L, pt2 R) {
+		return dot2(L, R) / (mag2(L)*mag2(R));
+	}
+	double sin2(pt2 L, pt2 R) {
+		auto cos = cos2(L, R);
+		return sqrt(1 - cos * cos);
+	}
+
+	bool isLeftOf(pt2 u, pt2 v) {
+		if (v.x >= 0) {
+			return v.x*u.y > u.x*v.y;
+		} else {
+			return v.x*u.y < u.x*v.y;
+		}
+	}
+
+	pt2 dif2(pt2 L, pt2 R) { return { L.x - R.x, L.y - R.y }; }
+
+	int Plan::getWaypoint(pt2& outP) {
+		auto curr = getCurNode();
+		auto currData = m_nodeData[curr];
+		Mob m = m_vehicle;
+		pt2 v = m.v;
+		double minMetric = std::numeric_limits<double>::infinity();
+		double minSin = 0.0;
+		pt2 minPoint = {};
+		auto succs = getSuccs(curr);
+		if (succs.empty()) {
+			return FAILURE;
+		}
+		for (auto it = succs.begin(); it != succs.end(); it++) {
+			int i = *it;
+			auto node = m_nodeData[i];
+			auto nRel = dif2(node.p, m.p);
+			auto sin = sin2(nRel, v);
+			auto dist = mag2(nRel);
+			auto metr = sin * dist;
+			if (metr < minMetric) {
+				minMetric = metr;
+				minSin = sin;
+				minPoint = node.p;
+			}
+		}
+		outP = minPoint;
+		return SUCCESS;
+	}
+
 	/* Returns index of the node containing the mob. 
 	 * If mob is in multiple nodes, returns the one whose center is closest.
 	 * If in is in no nodes, returns negative int. */
-	int getCurNode() {
+	int Plan::getCurNode() {
 		auto mob = m_vehicle;
 		vector<int> curNodes;
 		for (int i = 0; i < m_nodeCount; i++) {
@@ -146,8 +203,8 @@ public:
 		int iMin = -1;
 		for (auto it = curNodes.begin(); it != curNodes.end(); it++) {
 			NodeDatum dat = m_nodeData[*it];
-			auto cx = dat.x, cy = dat.y;
-			auto distSq = (cx - mob.x)*(cx - mob.x) + (cy - mob.y)*(cy - mob.y);
+			auto c = dat.p;
+			auto distSq = (c.x - mob.p.x)*(c.x - mob.p.x) + (c.y - mob.p.y)*(c.y - mob.p.y);
 			if (distSq < minDistSq) {
 				minDistSq = distSq;
 				iMin = *it;
@@ -157,11 +214,11 @@ public:
 		return iMin;
 	}
 
-	void lineTo(double rad, double wpX, double wpY, double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(), int precision = PRECISION) {
+	void Plan::lineTo(double rad, double wpX, double wpY, double mX, double mY, int precision) {
 		// NaN used as sentinel value to represent default behavior, which is to take mob position from the plan's
 		// idea of where the vehicle is.
 		if (std::isnan(mX) || std::isnan(mY)) {
-			mX = m_vehicle.x; mY = m_vehicle.y;
+			mX = m_vehicle.p.x; mY = m_vehicle.p.y;
 		}
 		if (wpX == mX || wpY == mY) {
 			return;
@@ -179,16 +236,10 @@ public:
 			curNode = addNode(curNode, curDatum);
 		} while (++i < PRECISION);
 	}
-private:
-	int m_nodeCount;
-	vector<NodeDatum> m_nodeData;
-	vector<vector<int>> m_adj;
-	Mob m_vehicle;
 
-	bool nodeContains(int i, Mob m) {
+	bool Plan::nodeContains(int i, Mob m) {
 		NodeDatum dat = m_nodeData[i];
-		auto cx = dat.x, cy = dat.y;
-		auto distSq = (cx - m.x)*(cx - m.x) + (cy - m.y)*(cy - m.y);
+		auto cx = dat.p.x, cy = dat.p.y;
+		auto distSq = (cx - m.p.x)*(cx - m.p.x) + (cy - m.p.y)*(cy - m.p.y);
 		return dat.rad*dat.rad >= distSq;
 	}
-};

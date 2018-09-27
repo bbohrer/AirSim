@@ -6,7 +6,7 @@
 #include <exception>
 #include <set>
 
-extern float GAverageFPS;
+extern ENGINE_API float GAverageFPS;
 
 using namespace msr::airlib;
 
@@ -25,6 +25,11 @@ struct Mob { // Mobile entity
 
 class Plan {
 public:
+	Plan(int nC,
+		vector<NodeDatum> nD,
+		vector<vector<int>> a,
+		Mob v);
+	Plan();
 	void setMob(double x, double y, double vx, double vy);
 	void jumpMob(double x, double y);
 	int addNode(NodeDatum nd);
@@ -33,12 +38,12 @@ public:
 	bool isRecurrent();
 
 	bool isAtDeadEnd();
-	static const int PRECISION = 10;
+	static const int PRECISION = 30;
 	static const int SUCCESS = 0;
 	static const int FAILURE = -1;
 
 	int getCurNode();
-
+	int getNode(int x, NodeDatum& outP);
 	int getWaypoint(pt2& outP);
 	void lineTo(double rad, double wpX, double wpY, double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(), int precision = PRECISION);
 private:

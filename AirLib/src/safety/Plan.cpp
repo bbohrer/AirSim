@@ -40,12 +40,18 @@
 #include "UnrealSensors/UnrealSensorFactory.h"
 #include "safety/Plan.hpp"
 #include "common/Geom.hpp"
-
-//#include "CarPawnApi.h"
+#include "GameFramework/Actor.h"
+#include "ProceduralMeshComponent.h"
 #include <exception>
 #include <set>
 
-extern float GAverageFPS = 0.0f;
+//#include "ProceduralMeshComponent.h"
+//#include "ActorFactories/ActorFactoryBasicShape.h"
+//#include "ActorFactoryBasicShape.generated.h"
+//#include "AssetRegistryModule.h"
+//#include "AssetData.h"
+
+//#include "CarPawnApi.h"
 
 using namespace msr::airlib;
 
@@ -63,20 +69,68 @@ struct Mob { // Mobile entity
 	double vy;
 };
 */
+Plan::Plan(int nC,
+	vector<NodeDatum> nD,
+	vector<vector<int>> a,
+	Mob v) : m_nodeCount(nC), m_nodeData(nD), m_adj(a), m_vehicle(v) {}
+Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
+
 	void Plan::setMob(double x, double y, double vx, double vy) {
 		m_vehicle = Mob(pt2(x,y),pt2(vx,vy));
 	}
 	void Plan::jumpMob(double x, double y) {
 		m_vehicle = Mob(pt2(x,y),pt2(0,0));
 	}
+
 	int Plan::addNode(NodeDatum nd) { return addNode(vector<int>(),nd); }
-	int Plan::addNode(int pred, NodeDatum nd) { return addNode(vector<int>(pred),nd); }
+	static int gFoo = 0;
+	int Plan::addNode(int pred, NodeDatum nd) { 
+		auto templ = NULL;
+		auto owner = NULL;
+		FVector pos = {}; 
+		
+		UWorld* uw = GWorld;
+		//AActor* ac = SpawnActor<CubeActor>();
+		FVector location( 100.0 * gFoo, 50.0 * gFoo, 25.0 * gFoo );
+		gFoo++;
+		auto rot = FRotator(0, 0, 0);
+		auto cls = ACubeActor::StaticClass();
+		// FActorSpawnParameters
+		AActor* act = uw->SpawnActor<ÄCubeActor>(cls, location, rot);
+		int x = 2 + 2;
+		//CubeActor ca(100);
+//		UWorld::SpawnActor()
+		//UActor *actor();
+		
+		//FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		//IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+//
+	//	auto ad = AssetRegistry.GetAssetByObjectPath(UActorFactoryBasicShape::BasicCube);
+		/** Initialize NewActorClass if necessary, and return default actor for that class. */
+		//UActorFactoryBasicShape ufac;
+		//AActor* foo = ufac.GetDefaultActor(ad);
+
+		/** Initialize NewActorClass if necessary, and return that class. */
+		//UClass* uc = ufac.GetDefaultActorClass(ad);
+
+		/** Given an instance of an actor pertaining to this factory, find t *
+		AActor a =
+			UWorld::SpawnActor(uclass, NULL, &pos, NULL, NULL, true, false, owner, NULL, true);
+			SpawnActor();
+		UPrimitiveComponent cmp;
+		a.Destroy();*/
+		vector<int> preds;
+		preds.push_back(pred);
+		return addNode(preds,nd); 
+	}
 	int Plan::addNode(vector<int> preds, NodeDatum nd) {
 		int thisNode = m_nodeCount++;
 		for (auto it = preds.begin(); it != preds.end(); it++) {
-			m_adj[*it].push_back(thisNode);
+			int i = *it;
+			m_adj[i].push_back(thisNode);
 		}
 		m_nodeData.push_back(nd);
+		m_adj.push_back(vector<int>());
 		return thisNode;
 	}
 	
@@ -126,14 +180,23 @@ struct Mob { // Mobile entity
 		// if we reach this point, must have been a recurrent set, not dead-end
 		return false; 
 	}
-	static const int PRECISION = 10;	
+	static const int PRECISION = 30;	
 	static const int SUCCESS = 0;
 	
 	std::vector<int>& Plan::getSuccs(int node) { return m_adj[node]; }
 
-	
+	int Plan::getNode(int x, NodeDatum& outP) {
+		if (x >= m_nodeCount) {
+			return FAILURE;
+		}
+		outP = m_nodeData[x];
+		return SUCCESS;
+	};
 	int Plan::getWaypoint(pt2& outP) {
 		auto curr = getCurNode();
+		if (curr < 0) {
+			return FAILURE;
+		}
 		auto currData = m_nodeData[curr];
 		Mob m = m_vehicle;
 		pt2 v = m.v;

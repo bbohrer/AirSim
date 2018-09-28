@@ -109,7 +109,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		act->GetRootComponent()->DestroyPhysicsState();
 		char buf[256];
 		snprintf(buf, 256, "(%d, %d, %d)", act->xCm, act->yCm, act->zCm);
-		UAirBlueprintLib::LogMessageString("CUBE: ", buf, LogDebugLevel::Informational);
+		UAirBlueprintLib::LogMessageString("CUBE: ", buf, LogDebugLevel::Failure);
 
 		int x = 2 + 2;
 		//CubeActor ca(100);
@@ -268,19 +268,19 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		return iMin;
 	}
 
-	void Plan::lineTo(double rad, double wpX, double wpY, double mX, double mY, int precision) {
+	void Plan::lineTo(double rad, double mX, double mY, double wpX, double wpY, int precision) {
 		// NaN used as sentinel value to represent default behavior, which is to take mob position from the plan's
 		// idea of where the vehicle is.
 		if (std::isnan(mX) || std::isnan(mY)) {
 			mX = m_vehicle.p.x; mY = m_vehicle.p.y;
 		}
-		if (wpX == mX || wpY == mY) {
+		/*if (wpX == mX && wpY == mY) {
 			return;
-		}
+		}*/
 		auto deltaX = (wpX - mX) / precision;
 		auto deltaY = (wpY - mY) / precision;
-		int curNode = 0;
-		if ((curNode = getCurNode()) < 0) {
+		int curNode = m_nodeCount-1;
+		if (curNode < 0) {
 			return;
 		}
 		int i = 0;

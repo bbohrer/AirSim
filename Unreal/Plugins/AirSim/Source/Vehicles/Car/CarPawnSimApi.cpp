@@ -24,11 +24,18 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	plan_.lineTo(rad, 212.80, 31.80, 67.00, 30.50);
 	plan_.lineTo(rad, 212.7,-150.2,212.8,31.80);
 	plan_.lineTo(rad, 67.00,-150.45,212.7,-150.2);*/
-	 
-	plan_.lineTo(rad, 0.00, 0.0, 0.00, -180.95);
+
+	/*	plan_.lineTo(rad, 0.00, 0.0, 0.00, -180.95);
 	plan_.lineTo(rad, 145.80, 1.30, 0.00, 0);
 	plan_.lineTo(rad, 145.7,-180.7, 145.8,1.30);
 	plan_.lineTo(rad, 0.00,-180.95, 145.7,-180.7);
+*/
+	plan_.lineTo(rad, 0.0,   0.0,    0.00,   30.0);
+	plan_.lineTo(rad, 0.0,  30.0,   145.0,  30.0);
+	plan_.lineTo(rad, 145.0,30.0,   145.0,  -145.0);
+	plan_.lineTo(rad, 145.0,-145.0, 0.0,    -145.0);
+	plan_.lineTo(rad, 0.0, -145.0, 0.00, 0.0);
+	int x = 2 + 2;
 }
 
 void CarPawnSimApi::createVehicleApi(ACarPawn* pawn, const msr::airlib::GeoPoint& home_geopoint)
@@ -98,7 +105,7 @@ enum ControlMode {
 	NUM_MODES
 };
 
-static ControlMode g_mode = KEYBOARD;
+static ControlMode g_mode = PLAN;
 //const bool RUN_AI = true;
 void CarPawnSimApi::updateCarControls()
 {

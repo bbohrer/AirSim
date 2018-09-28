@@ -39,6 +39,7 @@
 #include "AirBlueprintLib.h"
 #include "UnrealSensors/UnrealSensorFactory.h"
 #include "safety/Plan.hpp"
+#include "safety/CubeActor.h"
 #include "common/Geom.hpp"
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
@@ -91,12 +92,25 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		
 		UWorld* uw = GWorld;
 		//AActor* ac = SpawnActor<CubeActor>();
-		FVector location( 100.0 * gFoo, 50.0 * gFoo, 25.0 * gFoo );
+		FVector location( 0.0, 0.0, 0.0);
 		gFoo++;
 		auto rot = FRotator(0, 0, 0);
 		auto cls = ACubeActor::StaticClass();
 		// FActorSpawnParameters
-		AActor* act = uw->SpawnActor<ÄCubeActor>(cls, location, rot);
+		FActorSpawnParameters fasp; 
+		ESpawnActorCollisionHandlingMethod sachm = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		fasp.SpawnCollisionHandlingOverride = sachm;
+		ACubeActor* act = uw->SpawnActor<ACubeActor>(cls, location, rot, fasp);
+		act->xCm = nd.p.x * 100;
+		act->yCm = nd.p.y * 100;
+		act->zCm = 500 + (nd.rad * 100);
+		act->radiusCm = (int)(nd.rad * 100.0);
+		act->CreateCube();
+		act->GetRootComponent()->DestroyPhysicsState();
+		char buf[256];
+		snprintf(buf, 256, "(%d, %d, %d)", act->xCm, act->yCm, act->zCm);
+		UAirBlueprintLib::LogMessageString("CUBE: ", buf, LogDebugLevel::Informational);
+
 		int x = 2 + 2;
 		//CubeActor ca(100);
 //		UWorld::SpawnActor()

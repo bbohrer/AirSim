@@ -20,6 +20,14 @@ pt2 pt2::operator-(pt2 const R) const { return { x - R.x, y - R.y }; }
 	double pt2::mag(){
 		return sqrt(x*x + y*y);
 	}
+
+	pt2 pt2::unit() {
+		double m = mag();
+		if (m == 0.0) {
+			return pt2(0.0, 0.0);
+		}
+		return pt2(x / m, y / m);
+	}
 	
 	double pt2::cos2(pt2  other)  {
 		return ((*this)*other) / (mag()*other.mag());
@@ -31,8 +39,10 @@ pt2 pt2::operator-(pt2 const R) const { return { x - R.x, y - R.y }; }
 	}
 
 	bool pt2::isLeftOf(pt2 v) {
-		if (v.x >= 0) {
-			return v.x*y > x*v.y;
+		double vxy = v.x*y;
+		double xvy = x * v.y;
+		if (true/*v.x >= 0*/) {
+			return v.x*y < x*v.y;
 		}
 		else {
 			return v.x*y < x*v.y;

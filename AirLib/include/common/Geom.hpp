@@ -12,6 +12,7 @@ public:
 	double operator*(pt2 const other) const;
 
 	double mag();
+	pt2 unit();
 
 	double cos2(pt2  other) ;
 	double sin2(pt2  R) ;

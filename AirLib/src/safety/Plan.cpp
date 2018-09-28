@@ -297,3 +297,8 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		auto distSq = (cx - m.p.x)*(cx - m.p.x) + (cy - m.p.y)*(cy - m.p.y);
 		return dat.rad*dat.rad >= distSq;
 	}
+
+	int Plan::last() { return m_nodeCount - 1; }
+	void Plan::connect(int from, int to) {
+		m_adj[from].push_back(to);
+	}

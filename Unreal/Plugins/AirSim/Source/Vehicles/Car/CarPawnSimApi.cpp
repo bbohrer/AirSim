@@ -35,6 +35,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	plan_.lineTo(rad, 145.0,30.0,   145.0,  -145.0);
 	plan_.lineTo(rad, 145.0,-145.0, 0.0,    -145.0);
 	plan_.lineTo(rad, 0.0, -145.0, 0.00, 0.0);
+	plan_.connect(plan_.last(), 0);
 	int x = 2 + 2;
 }
 
@@ -198,14 +199,19 @@ void CarPawnSimApi::updateCarControls()
 	//plan_.setMob(pos[0], pos[1], vel[0], vel[1]);
 		auto st = vehicle_api_->getCarState();
 		auto pos = st.kinematics_estimated.pose.position;
+		pt2 pos2(pos.x(), pos.y());
 		auto speed = st.speed;
 		auto vx = velvec[0], vy = velvec[1], vz = velvec[2];
-	
+		auto oreo = st.kinematics_estimated.pose.orientation;
+		auto doubleStuff = oreo._transformVector({ 1.0, 0.0, 0.0 });
+			
 		plan_.setMob(pos[0], pos[1], velvec[0], velvec[1]);
 		pt2 way = {0,0};
 		if (Plan::SUCCESS != plan_.getWaypoint(way))
 			break;
-		bool goLeft = way.isLeftOf({ velvec[0], velvec[1] });
+		pt2 wayDiff = (way - pos2).unit();
+		pt2 doubleUnit = pt2(doubleStuff.x(), doubleStuff.y()).unit();
+		bool goLeft = wayDiff.isLeftOf(doubleUnit);
 		auto acc = 0.15f;
 		auto br = 0.2f;
 		auto dist = (pt2(pos[0],pos[1]) - way).mag();

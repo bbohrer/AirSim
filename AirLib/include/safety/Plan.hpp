@@ -46,6 +46,8 @@ public:
 	int getNode(int x, NodeDatum& outP);
 	int getWaypoint(pt2& outP);
 	void lineTo(double rad, double wpX, double wpY, double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(), int precision = PRECISION);
+	int last();
+	void connect(int from, int to);
 private:
 	int m_nodeCount;
 	vector<NodeDatum> m_nodeData;

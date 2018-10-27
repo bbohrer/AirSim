@@ -134,5 +134,6 @@ void ACubeActor::CreateCube() {
 
 	// Enable collision data
 	//mesh->ContainsPhysicsTriMeshData(true);
-	mesh->SetVisibility(true, true);
+	bool isVisible = false;
+	mesh->SetVisibility(isVisible, true);
 }

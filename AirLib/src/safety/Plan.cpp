@@ -101,15 +101,15 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		ESpawnActorCollisionHandlingMethod sachm = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		fasp.SpawnCollisionHandlingOverride = sachm;
 		ACubeActor* act = uw->SpawnActor<ACubeActor>(cls, location, rot, fasp);
-		act->xCm = nd.p.x * 100;
-		act->yCm = nd.p.y * 100;
+		act->xCm = nd.center.x * 100;
+		act->yCm = nd.center.y * 100;
 		act->zCm = 500 + (nd.rad * 100);
 		act->radiusCm = (int)(nd.rad * 100.0);
 		act->CreateCube();
 		act->GetRootComponent()->DestroyPhysicsState();
-		char buf[256];
+		/*char buf[256];
 		snprintf(buf, 256, "(%d, %d, %d)", act->xCm, act->yCm, act->zCm);
-		UAirBlueprintLib::LogMessageString("CUBE: ", buf, LogDebugLevel::Failure);
+		UAirBlueprintLib::LogMessageString("CUBE: ", buf, LogDebugLevel::Failure);*/
 
 		int x = 2 + 2;
 		//CubeActor ca(100);
@@ -221,17 +221,51 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		if (succs.empty()) {
 			return FAILURE;
 		}
+		pt2 mc = m.p;
+		/* TODO: Check whether update needed for new planner data structures */
 		for (auto it = succs.begin(); it != succs.end(); it++) {
 			int i = *it;
 			auto node = m_nodeData[i];
-			auto nRel = node.p - m.p;
-			auto sin = nRel.sin2(v);
-			auto dist = nRel.mag();
-			auto metr = sin * dist;
+//			pt2 nRel;
+			double dist;
+			//auto sin = nRel.sin2(v);
+			//auto dist = nRel.mag();
+			//auto nRel = node.center - m.p;
+			if (node.isArc) {
+				pt2 relM = mc - node.center;
+				pt2 relS = node.start - node.center;
+				pt2 relE = node.end - node.center;
+				
+				double thM = atan2(relM.x, relM.y), thS = atan2(relS.x, relS.y), thE = atan2(relE.x, relE.y);
+				double thMin = std::min(thS, thE), thMax = std::max(thS,thE);
+				double rAvg = (relE.mag() + relS.mag()) * 0.5;
+				double rMin = rAvg - (node.rad * 0.5);
+				double rMax = rAvg + (node.rad * 0.5);
+				if (thM <= thMin) {
+					pt2 relMin = pt2(cos(thMin),sin(thMin))*rAvg;
+					dist = (relMin - mc).mag();
+				} else if (thMax <= thM){
+					pt2 relMax = pt2(cos(thMax),sin(thMax))*rAvg;
+					dist = (relMax - mc).mag();
+				} else {
+					pt2 rel = pt2(cos(thM),sin(thM))*rAvg;
+					dist = (rel - mc).mag();
+				}
+			} else {
+				pt2 sRelM = mc - node.start;
+				pt2 eRelM = mc - node.end;
+				pt2 segRel = node.end - node.start;
+				pt2 mRel = mc - node.start;
+				pt2 proj = segRel * ((mRel*segRel) / (segRel*segRel));
+				pt2 segRelM = mc - proj;
+				dist = std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag()) <= node.rad;
+			}
+			double theSin = node.startTangent().sin2(v);
+			auto metr = theSin * dist;
 			if (metr < minMetric) {
 				minMetric = metr;
-				minSin = sin;
-				minPoint = node.p;
+				minSin = theSin;
+				minPoint = node.end;
 			}
 		}
 		outP = minPoint;
@@ -245,7 +279,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		auto mob = m_vehicle;
 		vector<int> curNodes;
 		for (int i = 0; i < m_nodeCount; i++) {
-			if (nodeContains(i, mob)) {
+			if (nodeContains(i, mob) || true) {
 				curNodes.push_back(i);
 			}
 		}
@@ -257,7 +291,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		int iMin = -1;
 		for (auto it = curNodes.begin(); it != curNodes.end(); it++) {
 			NodeDatum dat = m_nodeData[*it];
-			auto c = dat.p;
+			auto c = dat.center;
 			auto distSq = (c.x - mob.p.x)*(c.x - mob.p.x) + (c.y - mob.p.y)*(c.y - mob.p.y);
 			if (distSq < minDistSq) {
 				minDistSq = distSq;
@@ -268,7 +302,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		return iMin;
 	}
 
-	void Plan::lineTo(double rad, double mX, double mY, double wpX, double wpY, int precision) {
+	void Plan::lineTo(double rad, double mX, double mY, double wpX, double wpY) {
 		// NaN used as sentinel value to represent default behavior, which is to take mob position from the plan's
 		// idea of where the vehicle is.
 		if (std::isnan(mX) || std::isnan(mY)) {
@@ -277,25 +311,59 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		/*if (wpX == mX && wpY == mY) {
 			return;
 		}*/
-		auto deltaX = (wpX - mX) / precision;
-		auto deltaY = (wpY - mY) / precision;
+		/*auto deltaX = (wpX - mX) / precision;
+		auto deltaY = (wpY - mY) / precision;*/
 		int curNode = m_nodeCount-1;
+		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {}, false, rad };
 		if (curNode < 0) {
-			return;
+			curNode = addNode(nd);
+		} else {
+			curNode = addNode(curNode, nd);
 		}
-		int i = 0;
-		do {
-			mX += deltaX; mY += deltaY;
-			NodeDatum curDatum = { {mX, mY}, rad };
-			curNode = addNode(curNode, curDatum);
-		} while (++i < PRECISION);
+	}
+
+	void Plan::arcTo(double rad, double wpX, double wpY, double cX, double cY, double mX, double mY) {
+		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {cX,cY}, true, rad };
+		if (std::isnan(mX) || std::isnan(mY)) {
+			mX = m_vehicle.p.x; mY = m_vehicle.p.y;
+		}
+		int curNode = m_nodeCount - 1;
+		if (curNode < 0) {
+			curNode = addNode(nd);
+		} else {
+			curNode = addNode(curNode, nd);
+		}
 	}
 
 	bool Plan::nodeContains(int i, Mob m) {
+		pt2 mc = m.p;
 		NodeDatum dat = m_nodeData[i];
-		auto cx = dat.p.x, cy = dat.p.y;
+		if (dat.isArc) {
+			pt2 relM = mc - dat.center;
+			pt2 relS = dat.start - dat.center;
+			pt2 relE = dat.end - dat.center;
+			double thM = atan2(relM.x, relM.y), thS = atan2(relS.x, relS.y), thE = atan2(relE.x, relE.y);
+			bool inTh = std::min(thS, thE) <= thM && thM <= std::max(thS, thE);
+			if (!inTh) {
+				return false;
+			}
+			double rAvg = (relE.mag() + relS.mag()) * 0.5;
+			double rMin = rAvg - (dat.rad * 0.5);
+			double rMax = rAvg + (dat.rad * 0.5);
+			double rm = relM.mag();
+			return rMin <= rm && rm <= rMax;
+		} else {
+			pt2 sRelM = mc - dat.start;
+			pt2 eRelM = mc - dat.end;
+			pt2 segRel = dat.end - dat.start;
+			pt2 mRel = mc - dat.start;
+			pt2 proj = segRel*((mRel*segRel) / (segRel*segRel));
+			pt2 segRelM = mc - proj;
+			return std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag()) <= dat.rad;
+		}
+		/*auto cx = dat.p.x, cy = dat.p.y;
 		auto distSq = (cx - m.p.x)*(cx - m.p.x) + (cy - m.p.y)*(cy - m.p.y);
-		return dat.rad*dat.rad >= distSq;
+		return dat.rad*dat.rad >= distSq;*/
 	}
 
 	int Plan::last() { return m_nodeCount - 1; }

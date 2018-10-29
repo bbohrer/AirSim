@@ -5,6 +5,44 @@
 #include <exception>
 
 using namespace msr::airlib;
+//char buf[256] = {0};
+FILE* fd = NULL;
+// UAirBlueprintLib::LogMessageString(
+void printConsts(int A, int B, int cirTol, int dirTol, int xTol, int yTol) {
+	if (!fd) {
+		fd = fopen("C:\\Users\\Brandon\\Documents\\out.csv", "w");
+
+	}
+	fprintf(fd, "dx(A),dy(B),v(cirTol),xg(dirTol),yg(xTol),a(yTol),dx,dy,w,xg,yg\n");
+	fflush(fd);
+	//std::cout << buf << std::endl;
+	//UAirBlueprintLib::LogMessageString("CSV: ", buf, LogDebugLevel::Informational);
+	fprintf(fd, "%d,%d,%d,%d,%d,%d\n", A, B, cirTol, dirTol, xTol, yTol);
+	//std::cout << buf << std::endl;
+	fflush(fd);
+	//UAirBlueprintLib::LogMessageString("CSV: ", buf, LogDebugLevel::Informational);
+	//buf[0] = '\0';
+ 	//fflush(stdout);
+}
+
+void skipCtrls() {
+	fprintf(fd, ",,,,,\n");
+	fflush(fd);
+}
+
+void printSensors(int dx, int dy, int v, int xg, int yg) {
+	fprintf(fd,"%d,%d,%d,%d,%d,", dx, dy, v, xg, yg);
+	//std::cout << buf << std::endl;
+	//UAirBlueprintLib::LogMessageString("CSV: ", buf, LogDebugLevel::Informational);
+	//buf[0] = '\0';
+}
+
+void printCtrl(int a, int dx, int dy, int w, int xg, int yg) {
+	fprintf(fd,"%d,%d,%d,%d,%d,%d\n", a, dx, dy, w, xg, yg);	
+	fflush(fd);
+}
+
+const int RADIUS_CM = 1500;
 
 CarPawnSimApi::CarPawnSimApi(const Params& params,
 	const CarPawnApi::CarControls&  keyboard_controls, UWheeledVehicleMovementComponent* movement)
@@ -12,13 +50,12 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	keyboard_controls_(keyboard_controls)
 {
 	createVehicleApi(static_cast<ACarPawn*>(params.pawn), params.home_geopoint);
-
-	const double rad = 12.700;
+	double rad = ((double)RADIUS_CM) / 100.0;
 	joystick_controls_ = CarPawnApi::CarControls();
 	// car position and driveable area are from unreal editor level...
 	plan_.jumpMob(0.0, 0.0); // m
-	NodeDatum startDatum = { {0.0, 0.0}, rad };
-	plan_.addNode(startDatum);
+	/*NodeDatum startDatum = { {0.0, 0.0}, {0.0,1.0}, {0.0,0.5}, false, RADIUS_CM / 100 };
+	plan_.addNode(startDatum);*/
 	/*
 	plan_.lineTo(rad, 67.00, 30.50, 67.00, -150.45);
 	plan_.lineTo(rad, 212.80, 31.80, 67.00, 30.50);
@@ -31,10 +68,28 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	plan_.lineTo(rad, 0.00,-180.95, 145.7,-180.7);
 */
 	plan_.lineTo(rad, 0.0,   0.0,    0.00,   30.0);
-	plan_.lineTo(rad, 0.0,  30.0,   145.0,  30.0);
-	plan_.lineTo(rad, 145.0,30.0,   145.0,  -145.0);
-	plan_.lineTo(rad, 145.0,-145.0, 0.0,    -145.0);
-	plan_.lineTo(rad, 0.0, -145.0, 0.00, 0.0);
+	plan_.lineTo(rad, 0.0,  30.0,   152.0,  30.0);
+	plan_.lineTo(rad, 152.0,30.0,   152.0,  -156.0);
+	plan_.lineTo(rad, 152.0,-156.0, 0.0,    -156.0);
+	plan_.lineTo(rad, 0.0, -156.0, 0.00, 0.0);
+	int A = 13, B = 25; // cm/s^2
+	int cirTol = RADIUS_CM;
+	int dirTol = 100;
+	int xTol = 100;
+	int yTol = 100;
+	printConsts(A, B, cirTol, dirTol, xTol, yTol);
+	// TODO: dx,dy meaning depends on line vs arc segment
+	pt2 g = {};
+	plan_.getWaypoint(g);
+	//pt2 mRel = plan_.getM
+	auto st = vehicle_api_->getCarState();
+	auto pos = st.kinematics_estimated.pose.position;
+	pt2 pos2(pos.x(), pos.y());
+	auto speed = st.speed;
+	pt2 gRel = pos2 - g;
+	pt2 d = gRel.unit();
+	printSensors((int)(100*d.x), (int)(100*d.y), (int)(speed*100), 0, (int)(-100*gRel.y));
+	skipCtrls();
 	plan_.connect(plan_.last(), 0);
 	int x = 2 + 2;
 }
@@ -206,9 +261,29 @@ void CarPawnSimApi::updateCarControls()
 		auto doubleStuff = oreo._transformVector({ 1.0, 0.0, 0.0 });
 			
 		plan_.setMob(pos[0], pos[1], velvec[0], velvec[1]);
-		pt2 way = {0,0};
-		if (Plan::SUCCESS != plan_.getWaypoint(way))
-			break;
+		static int curNode = -1;
+		static NodeDatum curND = {};
+		if (-1 == curNode) {
+			curNode = plan_.getCurNode();
+		} else if (curND.atEnd(pos2)) {
+			auto succs = plan_.getSuccs(curNode);
+			curNode = succs[0];
+		}
+		plan_.getNode(curNode, curND);
+		//int curNode = plan_.getCurNode();
+		
+		pt2 way = curND.end;
+		
+		/*if (curND.atEnd(pos2)) {
+			if (Plan::SUCCESS != plan_.getWaypoint(way))
+				break;
+		}
+		else {
+			way = curND.end;
+		}*/
+
+		//if (Plan::SUCCESS != plan_.getWaypoint(way))
+//			break;
 		pt2 wayDiff = (way - pos2).unit();
 		pt2 doubleUnit = pt2(doubleStuff.x(), doubleStuff.y()).unit();
 		bool goLeft = wayDiff.isLeftOf(doubleUnit);
@@ -218,7 +293,8 @@ void CarPawnSimApi::updateCarControls()
 		auto ep = 1.0 / GAverageFPS;
 		auto vv = st.speed + acc * ep;
 		auto dd = dist - (ep * st.speed + ep * ep * 0.5f * acc);
-		bool close = vv * vv >= dd / (2.0f * br);
+		double SPEED_LIM = 16.0;
+		bool close = (vv * vv >= dd / (2.0f * br)) || vv >= SPEED_LIM;
 		//plan_.
 		CarPawnApi::CarControls ai_controls = {};
 		ai_controls.brake = 0.0f;
@@ -228,25 +304,28 @@ void CarPawnSimApi::updateCarControls()
 		ai_controls.is_manual_gear = false;
 		ai_controls.throttle = close ? 0.0f : 0.99f;
 		current_controls_ = ai_controls;
-		char buf[256];
-		int curNode = plan_.getCurNode();
-		NodeDatum curND;
-		plan_.getNode(curNode, curND);
+//		char buf[256];
 		//pt2 way;
-		plan_.getWaypoint(way);
 		bool doit = (velvec[0] >= 0);
 		double vxy = velvec[0]*way.y;
 		double xvy = way.x * velvec[1];
-		
+		double a = (ai_controls.throttle * 40.0) - 15.0;
+		pt2 d = (curND.tangent())*100;
+		double w; pt2 g; 
+
+		printSensors(d.x, d.y, 100 * speed, 100 * g.x, 100 * g.y);
+		printCtrl(a, d.x, d.y, 100 * w, 100 * g.x, 100 * g.y);
+
+		char buf[256];
 		snprintf(buf, 256, "%d: (%f, %f)", doit, vxy, xvy);
 		UAirBlueprintLib::LogMessageString("Str: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "(%f, %f)", pos[0], pos[1]/*, pos[2]*/);
 		UAirBlueprintLib::LogMessageString("Pos: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "(%f, %f)", velvec[0], velvec[1]/*, velvec[2]*/);
 		UAirBlueprintLib::LogMessageString("Vel: ", buf, LogDebugLevel::Informational);
-		snprintf(buf, 256, "from %d(%f,%f) to (%f,%f), left:%d", curNode, curND.p.x, curND.p.y, way.x, way.y, goLeft);
+		snprintf(buf, 256, "from %d(%f,%f) to (%f,%f), left:%d", curNode, curND.start.x, curND.start.y, way.x, way.y, goLeft);
 		UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
-
+		
 		if (!vehicle_api_->isApiControlEnabled()) {
 			//all car controls from anywhere must be routed through API component
 			vehicle_api_->setCarControls(current_controls_);

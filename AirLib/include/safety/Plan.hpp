@@ -12,8 +12,31 @@ using namespace msr::airlib;
 
 
 struct NodeDatum {
-	pt2 p; // meters from global Unreal origin
+	pt2 start; // meters from global Unreal origin
+	pt2 end;
+	pt2 center;
+	bool isArc;
 	double rad; // meters
+
+	bool atEnd(pt2 p) {
+		return (p - end).mag() <= rad;
+	}
+
+	pt2 tangent() {
+		pt2 tan =
+			  isArc 
+			? ((center - end).rot(M_PI * 0.5))
+			: start - end;
+		return tan.unit();
+	}
+
+	pt2 startTangent() {
+		pt2 tan =
+			isArc
+			? ((start - center).rot(M_PI * 0.5))
+			: end - start;
+		return tan.unit();
+	}
 };
 
 struct Mob { // Mobile entity
@@ -45,9 +68,14 @@ public:
 	int getCurNode();
 	int getNode(int x, NodeDatum& outP);
 	int getWaypoint(pt2& outP);
-	void lineTo(double rad, double wpX, double wpY, double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(), int precision = PRECISION);
+	void lineTo(double rad, double wpX, double wpY, 
+		double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN());
+	void arcTo(double rad, double wpX, double wpY, 
+		double cX, double cY,
+		double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN());
 	int last();
 	void connect(int from, int to);
+	std::vector<int>& getSuccs(int node);
 private:
 	int m_nodeCount;
 	vector<NodeDatum> m_nodeData;
@@ -55,5 +83,4 @@ private:
 	Mob m_vehicle;
 	
 	bool nodeContains(int i, Mob m);
-	std::vector<int>& getSuccs(int node);
 };

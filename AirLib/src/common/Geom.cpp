@@ -17,6 +17,10 @@ pt2 pt2::operator-(pt2 const R) const { return { x - R.x, y - R.y }; }
 		return x*other.x + y*other.y;
 	}
 
+	pt2 pt2::operator*(double other) const {
+		return { x*other, y*other };
+	}
+
 	double pt2::mag(){
 		return sqrt(x*x + y*y);
 	}
@@ -27,6 +31,14 @@ pt2 pt2::operator-(pt2 const R) const { return { x - R.x, y - R.y }; }
 			return pt2(0.0, 0.0);
 		}
 		return pt2(x / m, y / m);
+	}
+
+	pt2 pt2::rot(double rads) {
+		double thS = atan2(x, y);
+		double th = thS + rads;
+		while (th > M_PI * 2) th -= M_PI*2;
+		while (th < 0) th += M_PI * 2;
+		return { cos(th)*mag(), sin(th)*mag() };
 	}
 	
 	double pt2::cos2(pt2  other)  {

@@ -11,7 +11,7 @@ FILE* fd = NULL;
 void printConsts(int A, int B, int cirTol, int dirTol, int xTol, int yTol) {
 	if (!fd) {
 		fd = fopen("C:\\Users\\Brandon\\Documents\\out.csv", "w");
-
+		if (!fd) fd = stdout;
 	}
 	fprintf(fd, "dx(A),dy(B),v(cirTol),xg(dirTol),yg(xTol),a(yTol),dx,dy,w,xg,yg\n");
 	fflush(fd);
@@ -72,23 +72,30 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	plan_.lineTo(rad, 152.0,30.0,   152.0,  -156.0);
 	plan_.lineTo(rad, 152.0,-156.0, 0.0,    -156.0);
 	plan_.lineTo(rad, 0.0, -156.0, 0.00, 0.0);
-	int A = 13, B = 25; // cm/s^2
+	int A = 35, B = 15; // cm/s^2, derived from test data
 	int cirTol = RADIUS_CM;
 	int dirTol = 100;
 	int xTol = 100;
 	int yTol = 100;
 	printConsts(A, B, cirTol, dirTol, xTol, yTol);
 	// TODO: dx,dy meaning depends on line vs arc segment
-	pt2 g = {};
-	plan_.getWaypoint(g);
+	pt2 g = {0.0,30.0};
+	//plan_.getWaypoint(g);
 	//pt2 mRel = plan_.getM
 	auto st = vehicle_api_->getCarState();
 	auto pos = st.kinematics_estimated.pose.position;
 	pt2 pos2(pos.x(), pos.y());
 	auto speed = st.speed;
-	pt2 gRel = pos2 - g;
-	pt2 d = gRel.unit();
-	printSensors((int)(100*d.x), (int)(100*d.y), (int)(speed*100), 0, (int)(-100*gRel.y));
+	bool rel = false;
+	if (rel) {
+		pt2 gRel = pos2 - g;
+		pt2 d = gRel.unit();
+		printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(speed * 100), 0, (int)(-100 * gRel.y));
+	} else {
+		pt2 gRel = g - pos2;
+		pt2 d = gRel.unit();
+		printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(speed * 100), (int)(100*g.x), (int)(100 * g.y));
+	}
 	skipCtrls();
 	plan_.connect(plan_.last(), 0);
 	int x = 2 + 2;
@@ -161,7 +168,13 @@ enum ControlMode {
 	NUM_MODES
 };
 
+enum FeedbackMode {
+	PD = 0,
+	BANGBANG = 1
+};
+
 static ControlMode g_mode = PLAN;
+static FeedbackMode g_fb = PD;
 //const bool RUN_AI = true;
 void CarPawnSimApi::updateCarControls()
 {
@@ -180,6 +193,9 @@ void CarPawnSimApi::updateCarControls()
 		//auto vx = ori[0] * speed, vy = ori[1] * speed, vz = ori[2] * speed;
 		//plan_.setMob(pos[0], pos[1], vel[0], vel[1]);
 		
+		char buf[256];
+		snprintf(buf, 256, "%f", st.kinematics_estimated.twist.angular.z());
+		UAirBlueprintLib::LogMessageString("Omega: ", buf, LogDebugLevel::Informational);
 
 		if (rc_data.is_initialized) {
 			if (!rc_data.is_valid) {
@@ -295,27 +311,69 @@ void CarPawnSimApi::updateCarControls()
 		auto dd = dist - (ep * st.speed + ep * ep * 0.5f * acc);
 		double SPEED_LIM = 16.0;
 		bool close = (vv * vv >= dd / (2.0f * br)) || vv >= SPEED_LIM;
+		double w = st.kinematics_estimated.twist.angular.z();
+		static double defaultW = 0.0f;
+		// Clean up bad data, use last value if ludicrously large
+		if (w*w >= 18000.0) {
+			w = defaultW;
+		} else {
+			defaultW = w;
+		}
 		//plan_.
 		CarPawnApi::CarControls ai_controls = {};
 		ai_controls.brake = 0.0f;
-		ai_controls.steering = goLeft ? -30.0f : 30.0f;
 		ai_controls.gear_immediate = true;
 		ai_controls.manual_gear = 0;
 		ai_controls.is_manual_gear = false;
-		ai_controls.throttle = close ? 0.0f : 0.99f;
+		const double MAX_STEER = 1.0;
+		switch (g_fb) {
+		case PD: {
+			double d = curND.distance(pos2);
+			double leftD = wayDiff.sin2(doubleUnit);// .sin2(doubleUnit);
+			double leftP = (leftD < 0) ? -d : d;
+			//double leftD = w;
+			double P = 0.4;
+			double D = 0.15;
+			double str = P * leftP + D * leftD;
+			ai_controls.steering = str;
+			ai_controls.throttle = close ? 0.0f : 0.99f;
+			char buf[256];
+			snprintf(buf, 256, "%f\t%f", doubleUnit.sin2(wayDiff), wayDiff.sin2(doubleUnit));
+			UAirBlueprintLib::LogMessageString("TESTIT: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%2.2f*%2.2f=%2.2f,\t%2.2f*%2.2f=%2.2f,\tsum=%2.2f", P,leftP,P*leftP,D,leftD,D*leftD,str);
+			UAirBlueprintLib::LogMessageString("PD: ", buf, LogDebugLevel::Informational);
+
+			break;
+		}
+		case BANGBANG:
+			ai_controls.steering = goLeft ? -MAX_STEER : MAX_STEER;
+			ai_controls.throttle = close ? 0.0f : 0.99f;
+
+			break;
+		}
 		current_controls_ = ai_controls;
 //		char buf[256];
 		//pt2 way;
 		bool doit = (velvec[0] >= 0);
 		double vxy = velvec[0]*way.y;
 		double xvy = way.x * velvec[1];
-		double a = (ai_controls.throttle * 40.0) - 15.0;
-		pt2 d = (curND.tangent())*100;
-		double w; pt2 g; 
+		int A = 35, B = 15; // cm/s^2, derived from test data
+		double a = (ai_controls.throttle * 50.0) - 15.0;
+		bool relative = false;
+	    // Angular velocity, rad/s, positive is left
+		if (relative) {
+			pt2 d = (curND.tangent()) * 100;
+			pt2 g = way - pos2;
 
-		printSensors(d.x, d.y, 100 * speed, 100 * g.x, 100 * g.y);
-		printCtrl(a, d.x, d.y, 100 * w, 100 * g.x, 100 * g.y);
-
+			printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(100 * speed), (int)(100 * g.x), (int)(100 * g.y));
+			printCtrl((int)a, (int)(100*d.x), (int)(100*d.y), (int)(100 * w),     (int)(100 * g.x), (int)(100 * g.y));
+		} else {
+			pt2 d = pt2(doubleStuff.x(), doubleStuff.y());
+			pt2 g = way;
+			printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(100 * speed), (int)(100 * g.x), (int)(100 * g.y));
+			printCtrl((int)a, (int)(100*d.x), (int)(100*d.y), (int)(100 * w),     (int)(100 * g.x), (int)(100 * g.y));
+		}
+		
 		char buf[256];
 		snprintf(buf, 256, "%d: (%f, %f)", doit, vxy, xvy);
 		UAirBlueprintLib::LogMessageString("Str: ", buf, LogDebugLevel::Informational);

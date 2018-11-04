@@ -37,6 +37,41 @@ struct NodeDatum {
 			: end - start;
 		return tan.unit();
 	}
+
+	double distance(pt2 p) {
+		if (isArc) {
+			pt2 relM = p - center;
+			pt2 relS = start - center;
+			pt2 relE = end - center;
+
+			double thM = atan2(relM.x, relM.y), thS = atan2(relS.x, relS.y), thE = atan2(relE.x, relE.y);
+			double thMin = std::min(thS, thE), thMax = std::max(thS, thE);
+			double rAvg = (relE.mag() + relS.mag()) * 0.5;
+			double rMin = rAvg - (rad * 0.5);
+			double rMax = rAvg + (rad * 0.5);
+			if (thM <= thMin) {
+				pt2 relMin = pt2(cos(thMin), sin(thMin))*rAvg;
+				return (relMin - p).mag();
+			}
+			else if (thMax <= thM) {
+				pt2 relMax = pt2(cos(thMax), sin(thMax))*rAvg;
+				return (relMax - p).mag();
+			}
+			else {
+				pt2 rel = pt2(cos(thM), sin(thM))*rAvg;
+				return (rel - p).mag();
+			}
+		}
+		else {
+			pt2 sRelM = p - start;
+			pt2 eRelM = p - end;
+			pt2 segRel = end - start;
+			pt2 mRel = p - start;
+			pt2 proj = segRel * ((mRel*segRel) / (segRel*segRel));
+			pt2 segRelM = p - proj;
+			return std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag()) <= rad;
+		}
+	}
 };
 
 struct Mob { // Mobile entity

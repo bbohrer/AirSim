@@ -47,7 +47,9 @@ pt2 pt2::operator-(pt2 const R) const { return { x - R.x, y - R.y }; }
 
 	double pt2::sin2(pt2  R)  {
 		auto cos = cos2(R);
-		return sqrt(1 - cos * cos);
+		auto sq = sqrt(1 - cos * cos);
+		bool l = isLeftOf(R);
+		return l ? -sq : sq;
 	}
 
 	bool pt2::isLeftOf(pt2 v) {

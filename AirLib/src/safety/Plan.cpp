@@ -226,40 +226,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		for (auto it = succs.begin(); it != succs.end(); it++) {
 			int i = *it;
 			auto node = m_nodeData[i];
-//			pt2 nRel;
-			double dist;
-			//auto sin = nRel.sin2(v);
-			//auto dist = nRel.mag();
-			//auto nRel = node.center - m.p;
-			if (node.isArc) {
-				pt2 relM = mc - node.center;
-				pt2 relS = node.start - node.center;
-				pt2 relE = node.end - node.center;
-				
-				double thM = atan2(relM.x, relM.y), thS = atan2(relS.x, relS.y), thE = atan2(relE.x, relE.y);
-				double thMin = std::min(thS, thE), thMax = std::max(thS,thE);
-				double rAvg = (relE.mag() + relS.mag()) * 0.5;
-				double rMin = rAvg - (node.rad * 0.5);
-				double rMax = rAvg + (node.rad * 0.5);
-				if (thM <= thMin) {
-					pt2 relMin = pt2(cos(thMin),sin(thMin))*rAvg;
-					dist = (relMin - mc).mag();
-				} else if (thMax <= thM){
-					pt2 relMax = pt2(cos(thMax),sin(thMax))*rAvg;
-					dist = (relMax - mc).mag();
-				} else {
-					pt2 rel = pt2(cos(thM),sin(thM))*rAvg;
-					dist = (rel - mc).mag();
-				}
-			} else {
-				pt2 sRelM = mc - node.start;
-				pt2 eRelM = mc - node.end;
-				pt2 segRel = node.end - node.start;
-				pt2 mRel = mc - node.start;
-				pt2 proj = segRel * ((mRel*segRel) / (segRel*segRel));
-				pt2 segRelM = mc - proj;
-				dist = std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag()) <= node.rad;
-			}
+			double dist = node.distance(mc);
 			double theSin = node.startTangent().sin2(v);
 			auto metr = theSin * dist;
 			if (metr < minMetric) {

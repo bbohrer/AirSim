@@ -67,9 +67,13 @@ struct NodeDatum {
 			pt2 eRelM = p - end;
 			pt2 segRel = end - start;
 			pt2 mRel = p - start;
-			pt2 proj = segRel * ((mRel*segRel) / (segRel*segRel));
+			double c = segRel.cos2(mRel);
+			double theCos = abs(c);
+			pt2 proj = start + (segRel.unit() * theCos * mRel.mag());
+				//segRel * ((mRel*segRel) / (segRel*segRel));
 			pt2 segRelM = p - proj;
-			return std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag()) <= rad;
+			//) <= rad
+			return std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag());
 		}
 	}
 };

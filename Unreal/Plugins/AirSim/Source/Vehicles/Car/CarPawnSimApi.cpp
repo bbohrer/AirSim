@@ -42,7 +42,7 @@ void printCtrl(int a, int dx, int dy, int w, int xg, int yg) {
 	fflush(fd);
 }
 
-const int RADIUS_CM = 1500;
+const int RADIUS_CM = 250;
 
 CarPawnSimApi::CarPawnSimApi(const Params& params,
 	const CarPawnApi::CarControls&  keyboard_controls, UWheeledVehicleMovementComponent* movement)
@@ -67,11 +67,15 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	plan_.lineTo(rad, 145.7,-180.7, 145.8,1.30);
 	plan_.lineTo(rad, 0.00,-180.95, 145.7,-180.7);
 */
-	plan_.lineTo(rad, 0.0,   0.0,    0.00,   30.0);
-	plan_.lineTo(rad, 0.0,  30.0,   152.0,  30.0);
-	plan_.lineTo(rad, 152.0,30.0,   152.0,  -156.0);
-	plan_.lineTo(rad, 152.0,-156.0, 0.0,    -156.0);
-	plan_.lineTo(rad, 0.0, -156.0, 0.00, 0.0);
+	plan_.lineTo(rad, 0.0,   0.0,    0.00,   27.0);
+	plan_.arcTo(3.0,   3.0,30.0,    3.0,  27.0,    0.0, 27.0);
+	plan_.lineTo(rad, 3.0,  30.0,   149.0,  30.0);
+	plan_.arcTo(3.0,   152.0,27.0,  149.0,27.0,    149.0, 30.0);
+	plan_.lineTo(rad, 152.0,27.0,   152.0,  -149.0);
+	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0);
+	plan_.lineTo(rad, 149.0,-152.0, 3.0,    -152.0);
+	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0);
+	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0);
 	int A = 35, B = 15; // cm/s^2, derived from test data
 	int cirTol = RADIUS_CM;
 	int dirTol = 100;
@@ -332,8 +336,8 @@ void CarPawnSimApi::updateCarControls()
 			double leftD = wayDiff.sin2(doubleUnit);// .sin2(doubleUnit);
 			double leftP = (leftD < 0) ? -d : d;
 			//double leftD = w;
-			double P = 0.4;
-			double D = 0.15;
+			double P = 0.1;
+			double D = 0.5;
 			double str = P * leftP + D * leftD;
 			ai_controls.steering = str;
 			ai_controls.throttle = close ? 0.0f : 0.99f;

@@ -44,13 +44,81 @@ void printCtrl(int a, int dx, int dy, int w, int xg, int yg) {
 
 const int RADIUS_CM = 250;
 
+void CarPawnSimApi::loadRect() {
+	double rad = ((double)RADIUS_CM) / 100.0;
+	plan_.lineTo(rad, 0.0, 0.0, 0.00, 27.0);
+	plan_.arcTo(3.0, 3.0, 30.0, 3.0, 27.0, 0.0, 27.0);
+	plan_.lineTo(rad, 3.0, 30.0, 149.0, 30.0);
+	plan_.arcTo(3.0, 152.0, 27.0, 149.0, 27.0, 149.0, 30.0);
+	plan_.lineTo(rad, 152.0, 27.0, 152.0, -149.0);
+	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0);
+	plan_.lineTo(rad, 149.0, -152.0, 3.0, -152.0);
+	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0);
+	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0);
+
+}
+
+void CarPawnSimApi::gridTo(double a, double b, double c, double d, double e) {
+	double rate = 0.3;
+	plan_.lineTo(a, b * rate, c*rate, d*rate, e*rate);
+}
+
+void CarPawnSimApi::aTo(double r, double cornX, double cornY, double fromX, double fromY, double toX, double toY) {
+	double rate = 0.3;
+	plan_.arcTo(r, cornX*rate + toX,   cornY*rate + toY, 
+		           cornX*rate,         cornY*rate, 
+		           cornX*rate + fromX, cornY*rate + fromY);
+	//plan_.arcTo(rad, 200.0*rate, -200.0 - aRad, 200.0 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
+}
+void CarPawnSimApi::loadGrids() {
+	// first three plus bottom
+	double rad = ((double)RADIUS_CM) / 100.0;
+	double aRad = 3.0;
+	double rate = 0.3;
+	double margin = (aRad/* / rate*/);
+	gridTo(rad, 0.0, 0.0,       0.0, 115.0-margin);
+	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0);
+	gridTo(rad, margin, 115.0,     300.0-margin, 115.0);
+	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin);
+	gridTo(rad, 300.0, 115.0-margin,   300.0, margin);
+	aTo(rad, 300.0, 0, 0, margin, -margin, 0);
+	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0);
+	aTo(rad, 200, 0, margin, 0, 0, margin);
+	gridTo(rad, 200.0, margin,     200.0, 100.0-margin);
+	aTo(rad, 200, 100, 0, -margin, -margin, 0);
+	gridTo(rad, 200.0-margin, 100.0,   100.0+margin, 100.0);
+	aTo(rad, 100, 100, margin, 0, 0, -margin);
+	gridTo(rad, 100.0, 100.0-margin,   100.0, 0.0+margin);
+	aTo(rad, 100, 0, 0, margin, margin, 0);
+	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0);
+	aTo(rad, 200, 0, -margin, 0, 0, -margin);
+	//plan_.arcTo(rad, 200.0*rate, 0.0 - aRad, 200 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
+	//gridTo(rad, 100.0, 0.0, 200.0, 0.0);
+	gridTo(rad, 200.0, -margin, 200.0, -200.0 + margin);
+	aTo(rad, 200.0, -200.0, 0.0, margin, -margin, 0.0);
+	//plan_.arcTo(rad, 200.0*rate, -200.0 - aRad, 200.0 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
+	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0);
+	aTo(rad, -100, -200, margin, 0, 0, margin);
+	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin);
+	aTo(rad, -100, -100, 0, -margin, margin, 0);
+	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0);
+	aTo(rad, 0, -100, -margin, 0, 0, margin);
+	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0);
+}
+
 CarPawnSimApi::CarPawnSimApi(const Params& params,
 	const CarPawnApi::CarControls&  keyboard_controls, UWheeledVehicleMovementComponent* movement)
 	: PawnSimApi(params),
 	keyboard_controls_(keyboard_controls)
 {
+	mode_ = PLAN;
+	fb_ = PD;
+	level_ = LGRIDS;
+	curNode_ = -1;
+	curND_ = {};
+	defaultW = 0.0f;
+
 	createVehicleApi(static_cast<ACarPawn*>(params.pawn), params.home_geopoint);
-	double rad = ((double)RADIUS_CM) / 100.0;
 	joystick_controls_ = CarPawnApi::CarControls();
 	// car position and driveable area are from unreal editor level...
 	plan_.jumpMob(0.0, 0.0); // m
@@ -67,15 +135,15 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	plan_.lineTo(rad, 145.7,-180.7, 145.8,1.30);
 	plan_.lineTo(rad, 0.00,-180.95, 145.7,-180.7);
 */
-	plan_.lineTo(rad, 0.0,   0.0,    0.00,   27.0);
-	plan_.arcTo(3.0,   3.0,30.0,    3.0,  27.0,    0.0, 27.0);
-	plan_.lineTo(rad, 3.0,  30.0,   149.0,  30.0);
-	plan_.arcTo(3.0,   152.0,27.0,  149.0,27.0,    149.0, 30.0);
-	plan_.lineTo(rad, 152.0,27.0,   152.0,  -149.0);
-	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0);
-	plan_.lineTo(rad, 149.0,-152.0, 3.0,    -152.0);
-	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0);
-	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0);
+	switch (level_) {
+	case LRECT:
+		loadRect();
+		break;
+	case LGRIDS:
+		loadGrids();
+		break;
+	default: break;
+	}
 	int A = 35, B = 15; // cm/s^2, derived from test data
 	int cirTol = RADIUS_CM;
 	int dirTol = 100;
@@ -165,20 +233,6 @@ void CarPawnSimApi::updateRendering(float dt)
     }
 }
 
-enum ControlMode {
-	KEYBOARD = 0,
-	PLAN = 1,
-	SPIN = 2,
-	NUM_MODES
-};
-
-enum FeedbackMode {
-	PD = 0,
-	BANGBANG = 1
-};
-
-static ControlMode g_mode = PLAN;
-static FeedbackMode g_fb = PD;
 //const bool RUN_AI = true;
 void CarPawnSimApi::updateCarControls()
 {
@@ -188,7 +242,7 @@ void CarPawnSimApi::updateCarControls()
 	auto ori = st.kinematics_estimated.pose.orientation;
 	auto velvec = ori._transformVector({ (float)st.speed,0.0f,0.0f });
 	
-	switch (g_mode) {
+	switch (mode_) {
 	case KEYBOARD: {
 		//auto x = ori.matrix();
 //		auto y = ori.toRotationMatrix();
@@ -281,18 +335,16 @@ void CarPawnSimApi::updateCarControls()
 		auto doubleStuff = oreo._transformVector({ 1.0, 0.0, 0.0 });
 			
 		plan_.setMob(pos[0], pos[1], velvec[0], velvec[1]);
-		static int curNode = -1;
-		static NodeDatum curND = {};
-		if (-1 == curNode) {
-			curNode = plan_.getCurNode();
-		} else if (curND.atEnd(pos2)) {
-			auto succs = plan_.getSuccs(curNode);
-			curNode = succs[0];
+		if (-1 == curNode_) {
+			curNode_ = plan_.getCurNode();
+		} else if (curND_.atEnd(pos2)) {
+			auto succs = plan_.getSuccs(curNode_);
+			curNode_ = succs[0];
 		}
-		plan_.getNode(curNode, curND);
+		plan_.getNode(curNode_, curND_);
 		//int curNode = plan_.getCurNode();
 		
-		pt2 way = curND.end;
+		pt2 way = curND_.end;
 		
 		/*if (curND.atEnd(pos2)) {
 			if (Plan::SUCCESS != plan_.getWaypoint(way))
@@ -316,7 +368,6 @@ void CarPawnSimApi::updateCarControls()
 		double SPEED_LIM = 16.0;
 		bool close = (vv * vv >= dd / (2.0f * br)) || vv >= SPEED_LIM;
 		double w = st.kinematics_estimated.twist.angular.z();
-		static double defaultW = 0.0f;
 		// Clean up bad data, use last value if ludicrously large
 		if (w*w >= 18000.0) {
 			w = defaultW;
@@ -330,9 +381,9 @@ void CarPawnSimApi::updateCarControls()
 		ai_controls.manual_gear = 0;
 		ai_controls.is_manual_gear = false;
 		const double MAX_STEER = 1.0;
-		switch (g_fb) {
+		switch (fb_) {
 		case PD: {
-			double d = curND.distance(pos2);
+			double d = curND_.distance(pos2);
 			double leftD = wayDiff.sin2(doubleUnit);// .sin2(doubleUnit);
 			double leftP = (leftD < 0) ? -d : d;
 			//double leftD = w;
@@ -366,7 +417,7 @@ void CarPawnSimApi::updateCarControls()
 		bool relative = false;
 	    // Angular velocity, rad/s, positive is left
 		if (relative) {
-			pt2 d = (curND.tangent()) * 100;
+			pt2 d = (curND_.tangent()) * 100;
 			pt2 g = way - pos2;
 
 			printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(100 * speed), (int)(100 * g.x), (int)(100 * g.y));
@@ -385,7 +436,7 @@ void CarPawnSimApi::updateCarControls()
 		UAirBlueprintLib::LogMessageString("Pos: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "(%f, %f)", velvec[0], velvec[1]/*, velvec[2]*/);
 		UAirBlueprintLib::LogMessageString("Vel: ", buf, LogDebugLevel::Informational);
-		snprintf(buf, 256, "from %d(%f,%f) to (%f,%f), left:%d", curNode, curND.start.x, curND.start.y, way.x, way.y, goLeft);
+		snprintf(buf, 256, "from %d(%f,%f) to (%f,%f), left:%d", curNode_, curND_.start.x, curND_.start.y, way.x, way.y, goLeft);
 		UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
 		
 		if (!vehicle_api_->isApiControlEnabled()) {

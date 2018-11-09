@@ -22,7 +22,16 @@ struct NodeDatum {
 		return (p - end).mag() <= rad;
 	}
 
-	pt2 tangent() {
+	pt2 tangentAt(pt2 here) {
+		if (isArc) {
+			//double theMag = (start - center).mag();
+			return  (here - center).unit().rot(-0.5*M_PI);
+
+		} else 
+			return (start - end).unit();
+	}
+
+	pt2 endTangent() {
 		pt2 tan =
 			  isArc 
 			? ((center - end).rot(M_PI * 0.5))

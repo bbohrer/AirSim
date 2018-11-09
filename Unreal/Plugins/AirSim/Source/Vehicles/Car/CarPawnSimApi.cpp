@@ -17,7 +17,7 @@ void printConsts(int A, int B, int cirTol, int dirTol, int xTol, int yTol) {
 	fflush(fd);
 	//std::cout << buf << std::endl;
 	//UAirBlueprintLib::LogMessageString("CSV: ", buf, LogDebugLevel::Informational);
-	fprintf(fd, "%d,%d,%d,%d,%d,%d\n", A, B, cirTol, dirTol, xTol, yTol);
+	fprintf(fd, "%d,%d,%d,%d,%d,%d\n", A, B, cirTol/10, dirTol, xTol, yTol);
 	//std::cout << buf << std::endl;
 	fflush(fd);
 	//UAirBlueprintLib::LogMessageString("CSV: ", buf, LogDebugLevel::Informational);
@@ -29,6 +29,12 @@ void skipCtrls() {
 	fprintf(fd, ",,,,,\n");
 	fflush(fd);
 }
+
+int dir(double d) { return (int)(10.0*d); }
+int tol(double d) { return (int)(10.0*d); }
+int pos(double d) { return (int)(10.0*d); }
+int vel(double d) { return (int)(10.0*d); }
+int acc(double d) { return (int)(100.0*d); }
 
 void printSensors(int dx, int dy, int v, int xg, int yg) {
 	fprintf(fd,"%d,%d,%d,%d,%d,", dx, dy, v, xg, yg);
@@ -42,7 +48,9 @@ void printCtrl(int a, int dx, int dy, int w, int xg, int yg) {
 	fflush(fd);
 }
 
+// @TODO: should we add a constant for direction magnitude? If so, sqrt(325) and sqrt(65) are best
 const int RADIUS_CM = 250;
+const int relative = 1;
 
 void CarPawnSimApi::loadRect() {
 	double rad = ((double)RADIUS_CM) / 100.0;
@@ -70,6 +78,8 @@ void CarPawnSimApi::aTo(double r, double cornX, double cornY, double fromX, doub
 		           cornX*rate + fromX, cornY*rate + fromY);
 	//plan_.arcTo(rad, 200.0*rate, -200.0 - aRad, 200.0 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
 }
+
+
 void CarPawnSimApi::loadGrids() {
 	// first three plus bottom
 	double rad = ((double)RADIUS_CM) / 100.0;
@@ -146,31 +156,31 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	}
 	int A = 35, B = 15; // cm/s^2, derived from test data
 	int cirTol = RADIUS_CM;
-	int dirTol = 100;
-	int xTol = 100;
-	int yTol = 100;
+	int dirTol = 10;
+	int xTol = 10;
+	int yTol = 10;
 	printConsts(A, B, cirTol, dirTol, xTol, yTol);
 	// TODO: dx,dy meaning depends on line vs arc segment
 	pt2 g = {0.0,30.0};
 	//plan_.getWaypoint(g);
 	//pt2 mRel = plan_.getM
 	auto st = vehicle_api_->getCarState();
-	auto pos = st.kinematics_estimated.pose.position;
-	pt2 pos2(pos.x(), pos.y());
+	auto positional = st.kinematics_estimated.pose.position;
+	pt2 pos2(positional.x(), positional.y());
 	auto speed = st.speed;
-	bool rel = false;
-	if (rel) {
+	auto acc = 0;
+	/* dir tol pos vel acc*/
+	if (relative) {
 		pt2 gRel = pos2 - g;
 		pt2 d = gRel.unit();
-		printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(speed * 100), 0, (int)(-100 * gRel.y));
+		printCtrl(acc,dir(d.x), dir(d.y), vel(speed), pos(0), pos(-gRel.y));
 	} else {
 		pt2 gRel = g - pos2;
 		pt2 d = gRel.unit();
-		printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(speed * 100), (int)(100*g.x), (int)(100 * g.y));
+		printCtrl(acc,dir(d.x), dir(d.y), vel(speed), pos(g.x), pos(g.y));
 	}
-	skipCtrls();
+	//skipCtrls();
 	plan_.connect(plan_.last(), 0);
-	int x = 2 + 2;
 }
 
 void CarPawnSimApi::createVehicleApi(ACarPawn* pawn, const msr::airlib::GeoPoint& home_geopoint)
@@ -238,7 +248,7 @@ void CarPawnSimApi::updateCarControls()
 {
 	auto rc_data = getRCData();
 	auto st = vehicle_api_->getCarState();
-	auto pos = st.kinematics_estimated.pose.position;
+	auto positional = st.kinematics_estimated.pose.position;
 	auto ori = st.kinematics_estimated.pose.orientation;
 	auto velvec = ori._transformVector({ (float)st.speed,0.0f,0.0f });
 	
@@ -327,14 +337,14 @@ void CarPawnSimApi::updateCarControls()
 	//	auto z = ori.vec();
 	//plan_.setMob(pos[0], pos[1], vel[0], vel[1]);
 		auto st = vehicle_api_->getCarState();
-		auto pos = st.kinematics_estimated.pose.position;
-		pt2 pos2(pos.x(), pos.y());
+		auto positional = st.kinematics_estimated.pose.position;
+		pt2 pos2(positional.x(), positional.y());
 		auto speed = st.speed;
 		auto vx = velvec[0], vy = velvec[1], vz = velvec[2];
 		auto oreo = st.kinematics_estimated.pose.orientation;
-		auto doubleStuff = oreo._transformVector({ 1.0, 0.0, 0.0 });
+		auto direction = oreo._transformVector({ 1.0, 0.0, 0.0 });
 			
-		plan_.setMob(pos[0], pos[1], velvec[0], velvec[1]);
+		plan_.setMob(positional[0], positional[1], velvec[0], velvec[1]);
 		if (-1 == curNode_) {
 			curNode_ = plan_.getCurNode();
 		} else if (curND_.atEnd(pos2)) {
@@ -357,14 +367,14 @@ void CarPawnSimApi::updateCarControls()
 		//if (Plan::SUCCESS != plan_.getWaypoint(way))
 //			break;
 		pt2 wayDiff = (way - pos2).unit();
-		pt2 doubleUnit = pt2(doubleStuff.x(), doubleStuff.y()).unit();
-		bool goLeft = wayDiff.isLeftOf(doubleUnit);
-		auto acc = 0.15f;
+		pt2 dir2 = pt2(direction.x(), direction.y()).unit();
+		bool goLeft = wayDiff.isLeftOf(dir2);
+		auto accelRate = 0.15f;
 		auto br = 0.2f;
-		auto dist = (pt2(pos[0],pos[1]) - way).mag();
+		auto dist = (pt2(positional[0],positional[1]) - way).mag();
 		auto ep = 1.0 / GAverageFPS;
-		auto vv = st.speed + acc * ep;
-		auto dd = dist - (ep * st.speed + ep * ep * 0.5f * acc);
+		auto vv = st.speed + accelRate * ep;
+		auto dd = dist - (ep * st.speed + ep * ep * 0.5f * accelRate);
 		double SPEED_LIM = 16.0;
 		bool close = (vv * vv >= dd / (2.0f * br)) || vv >= SPEED_LIM;
 		double w = st.kinematics_estimated.twist.angular.z();
@@ -384,7 +394,7 @@ void CarPawnSimApi::updateCarControls()
 		switch (fb_) {
 		case PD: {
 			double d = curND_.distance(pos2);
-			double leftD = wayDiff.sin2(doubleUnit);// .sin2(doubleUnit);
+			double leftD = wayDiff.sin2(dir2);// .sin2(doubleUnit);
 			double leftP = (leftD < 0) ? -d : d;
 			//double leftD = w;
 			double P = 0.1;
@@ -393,7 +403,7 @@ void CarPawnSimApi::updateCarControls()
 			ai_controls.steering = str;
 			ai_controls.throttle = close ? 0.0f : 0.99f;
 			char buf[256];
-			snprintf(buf, 256, "%f\t%f", doubleUnit.sin2(wayDiff), wayDiff.sin2(doubleUnit));
+			snprintf(buf, 256, "%f\t%f", dir2.sin2(wayDiff), wayDiff.sin2(dir2));
 			UAirBlueprintLib::LogMessageString("TESTIT: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%2.2f*%2.2f=%2.2f,\t%2.2f*%2.2f=%2.2f,\tsum=%2.2f", P,leftP,P*leftP,D,leftD,D*leftD,str);
 			UAirBlueprintLib::LogMessageString("PD: ", buf, LogDebugLevel::Informational);
@@ -413,26 +423,29 @@ void CarPawnSimApi::updateCarControls()
 		double vxy = velvec[0]*way.y;
 		double xvy = way.x * velvec[1];
 		int A = 35, B = 15; // cm/s^2, derived from test data
-		double a = (ai_controls.throttle * 50.0) - 15.0;
-		bool relative = false;
-	    // Angular velocity, rad/s, positive is left
+		double a = (ai_controls.throttle * .5) - .15;
+		// Angular velocity, rad/s, positive is left
 		if (relative) {
-			pt2 d = (curND_.tangent()) * 100;
-			pt2 g = way - pos2;
-
-			printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(100 * speed), (int)(100 * g.x), (int)(100 * g.y));
-			printCtrl((int)a, (int)(100*d.x), (int)(100*d.y), (int)(100 * w),     (int)(100 * g.x), (int)(100 * g.y));
+			// TODO: Direction at current point!
+			//pt2 d = (curND_.tangentAt(pos2));
+			pt2 diff = way - pos2;
+			//pt2 projX = diff.proj(dir2);
+			//pt2 dir3 = dir2.rot(0.5*M_PI);
+			//pt2 projY = diff.proj(dir3);
+			pt2 g = diff.rebase(dir2);
+			/* dir tol pos vel acc*/
+			printSensors(dir(dir2.x), dir(dir2.y), vel(speed), pos(g.x), pos(g.y));
+			printCtrl(acc(a), dir(dir2.x), dir(dir2.y), acc(w), pos(g.x), pos(g.y));
 		} else {
-			pt2 d = pt2(doubleStuff.x(), doubleStuff.y());
 			pt2 g = way;
-			printSensors((int)(100 * d.x), (int)(100 * d.y), (int)(100 * speed), (int)(100 * g.x), (int)(100 * g.y));
-			printCtrl((int)a, (int)(100*d.x), (int)(100*d.y), (int)(100 * w),     (int)(100 * g.x), (int)(100 * g.y));
+			printSensors(dir(dir2.x), dir(dir2.y), vel(speed), pos(g.x), pos(g.y));
+			printCtrl(acc(a), dir(dir2.x), dir(dir2.y), acc(w), pos(g.x), pos(g.y));
 		}
 		
 		char buf[256];
 		snprintf(buf, 256, "%d: (%f, %f)", doit, vxy, xvy);
 		UAirBlueprintLib::LogMessageString("Str: ", buf, LogDebugLevel::Informational);
-		snprintf(buf, 256, "(%f, %f)", pos[0], pos[1]/*, pos[2]*/);
+		snprintf(buf, 256, "(%f, %f)", positional[0], positional[1]/*, pos[2]*/);
 		UAirBlueprintLib::LogMessageString("Pos: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "(%f, %f)", velvec[0], velvec[1]/*, velvec[2]*/);
 		UAirBlueprintLib::LogMessageString("Vel: ", buf, LogDebugLevel::Informational);

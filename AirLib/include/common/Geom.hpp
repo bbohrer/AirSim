@@ -15,6 +15,8 @@ public:
 	double mag();
 	pt2 unit();
 	pt2 rot(double rads);
+	pt2 proj(pt2 other);
+	pt2 rebase(pt2 other);
 
 	double cos2(pt2  other) ;
 	double sin2(pt2  R) ;

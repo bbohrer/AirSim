@@ -16,7 +16,23 @@ struct NodeDatum {
 	pt2 end;
 	pt2 center;
 	bool isArc;
-	double rad; // meters
+	double rad; // metersm
+	double vlo; // m/s
+	double vhi; // m/s
+
+	double signedRad() {
+		if (isArc) {
+			if ((center - start).isLeftOf(end - start)) {
+				return rad;
+			}
+			else {
+				return -rad;
+			}
+		}
+		else {
+			return std::numeric_limits<double>::infinity();
+		}
+	}
 
 	bool atEnd(pt2 p) {
 		return (p - end).mag() <= rad;
@@ -117,10 +133,12 @@ public:
 	int getNode(int x, NodeDatum& outP);
 	int getWaypoint(pt2& outP);
 	void lineTo(double rad, double wpX, double wpY, 
-		double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN());
+		double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(),
+		double vLo = 0.0, double vHi = 0.0);
 	void arcTo(double rad, double wpX, double wpY, 
 		double cX, double cY,
-		double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN());
+		double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(),
+		double vLo  = 0.0, double vHi = 0.0);
 	int last();
 	void connect(int from, int to);
 	std::vector<int>& getSuccs(int node);

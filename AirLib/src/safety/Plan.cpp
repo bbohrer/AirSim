@@ -269,7 +269,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		return iMin;
 	}
 
-	void Plan::lineTo(double rad, double mX, double mY, double wpX, double wpY) {
+	void Plan::lineTo(double rad, double mX, double mY, double wpX, double wpY, double vLo, double vHi) {
 		// NaN used as sentinel value to represent default behavior, which is to take mob position from the plan's
 		// idea of where the vehicle is.
 		if (std::isnan(mX) || std::isnan(mY)) {
@@ -281,7 +281,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		/*auto deltaX = (wpX - mX) / precision;
 		auto deltaY = (wpY - mY) / precision;*/
 		int curNode = m_nodeCount-1;
-		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {}, false, rad };
+		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {}, false, rad, vLo, vHi };
 		if (curNode < 0) {
 			curNode = addNode(nd);
 		} else {
@@ -289,8 +289,8 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		}
 	}
 
-	void Plan::arcTo(double rad, double wpX, double wpY, double cX, double cY, double mX, double mY) {
-		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {cX,cY}, true, rad };
+	void Plan::arcTo(double rad, double wpX, double wpY, double cX, double cY, double mX, double mY, double vLo, double vHi) {
+		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {cX,cY}, true, rad, vLo, vHi };
 		if (std::isnan(mX) || std::isnan(mY)) {
 			mX = m_vehicle.p.x; mY = m_vehicle.p.y;
 		}

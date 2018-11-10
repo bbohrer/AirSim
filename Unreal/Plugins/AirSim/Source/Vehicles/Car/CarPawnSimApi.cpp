@@ -8,16 +8,16 @@ using namespace msr::airlib;
 //char buf[256] = {0};
 FILE* fd = NULL;
 // UAirBlueprintLib::LogMessageString(
-void printConsts(int A, int B, int cirTol, int dirTol, int xTol, int yTol) {
+void printConsts(int T, int eps) {
 	if (!fd) {
 		fd = fopen("C:\\Users\\Brandon\\Documents\\out.csv", "w");
 		if (!fd) fd = stdout;
 	}
-	fprintf(fd, "dx(A),dy(B),v(cirTol),xg(dirTol),yg(xTol),a(yTol),dx,dy,w,xg,yg\n");
+	fprintf(fd, "t(T),v(eps),xg,yg,a,k,t,vh,vl,xg,yg\n");
 	fflush(fd);
 	//std::cout << buf << std::endl;
 	//UAirBlueprintLib::LogMessageString("CSV: ", buf, LogDebugLevel::Informational);
-	fprintf(fd, "%d,%d,%d,%d,%d,%d\n", A, B, cirTol/10, dirTol, xTol, yTol);
+	fprintf(fd, "%d,%d\n", T, eps/10);
 	//std::cout << buf << std::endl;
 	fflush(fd);
 	//UAirBlueprintLib::LogMessageString("CSV: ", buf, LogDebugLevel::Informational);
@@ -35,16 +35,21 @@ int tol(double d) { return (int)(10.0*d); }
 int pos(double d) { return (int)(10.0*d); }
 int vel(double d) { return (int)(10.0*d); }
 int acc(double d) { return (int)(100.0*d); }
+int tim(double d) { return (int)(1000.0*d); }
+int curv(double d) {
+	double x = 100.0*d;
+	return (int)(x); 
+}
 
-void printSensors(int dx, int dy, int v, int xg, int yg) {
-	fprintf(fd,"%d,%d,%d,%d,%d,", dx, dy, v, xg, yg);
+void printSensors(int t, int v, int xg, int yg) {
+	fprintf(fd,"%d,%d,%d,%d,", t, v, xg, yg);
 	//std::cout << buf << std::endl;
 	//UAirBlueprintLib::LogMessageString("CSV: ", buf, LogDebugLevel::Informational);
 	//buf[0] = '\0';
 }
 
-void printCtrl(int a, int dx, int dy, int w, int xg, int yg) {
-	fprintf(fd,"%d,%d,%d,%d,%d,%d\n", a, dx, dy, w, xg, yg);	
+void printCtrl(int a, int k, int t, int vh, int vl, int xg, int yg) {
+	fprintf(fd,"%d,%d,%d,%d,%d,%d,%d\n", a, k, t,vh, vl, xg, yg);	
 	fflush(fd);
 }
 
@@ -54,28 +59,27 @@ const int relative = 1;
 
 void CarPawnSimApi::loadRect() {
 	double rad = ((double)RADIUS_CM) / 100.0;
-	plan_.lineTo(rad, 0.0, 0.0, 0.00, 27.0);
-	plan_.arcTo(3.0, 3.0, 30.0, 3.0, 27.0, 0.0, 27.0);
-	plan_.lineTo(rad, 3.0, 30.0, 149.0, 30.0);
-	plan_.arcTo(3.0, 152.0, 27.0, 149.0, 27.0, 149.0, 30.0);
-	plan_.lineTo(rad, 152.0, 27.0, 152.0, -149.0);
-	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0);
-	plan_.lineTo(rad, 149.0, -152.0, 3.0, -152.0);
-	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0);
-	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0);
-
+	plan_.lineTo(rad, 0.0, 0.0, 0.00, 27.0, 0.5, 3.0);
+	plan_.arcTo(3.0, 3.0, 30.0, 3.0, 27.0, 0.0, 27.0, 3.0, 4.5);
+	plan_.lineTo(rad, 3.0, 30.0, 149.0, 30.0, 4.5, 8.0);
+	plan_.arcTo(3.0, 152.0, 27.0, 149.0, 27.0, 149.0, 30.0, 8.0, 9.0);
+	plan_.lineTo(rad, 152.0, 27.0, 152.0, -149.0, 12.0, 14.0);
+	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0, 14.0, 16.0);
+	plan_.lineTo(rad, 149.0, -152.0, 3.0, -152.0, 14.0, 16.0);
+	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0, 14.0, 16.0);
+	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0, 14.0, 16.0);
 }
 
-void CarPawnSimApi::gridTo(double a, double b, double c, double d, double e) {
+void CarPawnSimApi::gridTo(double a, double b, double c, double d, double e, double f, double g) {
 	double rate = 0.3;
-	plan_.lineTo(a, b * rate, c*rate, d*rate, e*rate);
+	plan_.lineTo(a, b * rate, c*rate, d*rate, e*rate, f, g);
 }
 
-void CarPawnSimApi::aTo(double r, double cornX, double cornY, double fromX, double fromY, double toX, double toY) {
+void CarPawnSimApi::aTo(double r, double cornX, double cornY, double fromX, double fromY, double toX, double toY, double f, double g) {
 	double rate = 0.3;
 	plan_.arcTo(r, cornX*rate + toX,   cornY*rate + toY, 
 		           cornX*rate,         cornY*rate, 
-		           cornX*rate + fromX, cornY*rate + fromY);
+		           cornX*rate + fromX, cornY*rate + fromY, f, g);
 	//plan_.arcTo(rad, 200.0*rate, -200.0 - aRad, 200.0 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
 }
 
@@ -86,34 +90,34 @@ void CarPawnSimApi::loadGrids() {
 	double aRad = 3.0;
 	double rate = 0.3;
 	double margin = (aRad/* / rate*/);
-	gridTo(rad, 0.0, 0.0,       0.0, 115.0-margin);
-	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0);
-	gridTo(rad, margin, 115.0,     300.0-margin, 115.0);
-	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin);
-	gridTo(rad, 300.0, 115.0-margin,   300.0, margin);
-	aTo(rad, 300.0, 0, 0, margin, -margin, 0);
-	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0);
-	aTo(rad, 200, 0, margin, 0, 0, margin);
-	gridTo(rad, 200.0, margin,     200.0, 100.0-margin);
-	aTo(rad, 200, 100, 0, -margin, -margin, 0);
-	gridTo(rad, 200.0-margin, 100.0,   100.0+margin, 100.0);
-	aTo(rad, 100, 100, margin, 0, 0, -margin);
-	gridTo(rad, 100.0, 100.0-margin,   100.0, 0.0+margin);
-	aTo(rad, 100, 0, 0, margin, margin, 0);
-	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0);
-	aTo(rad, 200, 0, -margin, 0, 0, -margin);
+	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, 1.0, 5.0);
+	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, 5.0, 8.0);
+	gridTo(rad, margin, 115.0,     300.0-margin, 115.0, 5.0, 10.0);
+	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin, 10.0, 14.0);
+	gridTo(rad, 300.0, 115.0-margin,   300.0, margin, 14.0, 16.0);
+	aTo(rad, 300.0, 0, 0, margin, -margin, 0, 14.0, 16.0);
+	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0, 14.0, 16.0);
+	aTo(rad, 200, 0, margin, 0, 0, margin, 14.0,16.0);
+	gridTo(rad, 200.0, margin,     200.0, 100.0-margin,14.0,16.0);
+	aTo(rad, 200, 100, 0, -margin, -margin, 0,14.0,16.0);
+	gridTo(rad, 200.0-margin, 100.0,   100.0+margin, 100.0,14.0,16.0);
+	aTo(rad, 100, 100, margin, 0, 0, -margin,14.0,16.0);
+	gridTo(rad, 100.0, 100.0-margin,   100.0, 0.0+margin,14.0,16.0);
+	aTo(rad, 100, 0, 0, margin, margin, 0,14.0,16.0);
+	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0,14.0,16.0);
+	aTo(rad, 200, 0, -margin, 0, 0, -margin,14.0,16.0);
 	//plan_.arcTo(rad, 200.0*rate, 0.0 - aRad, 200 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
 	//gridTo(rad, 100.0, 0.0, 200.0, 0.0);
-	gridTo(rad, 200.0, -margin, 200.0, -200.0 + margin);
-	aTo(rad, 200.0, -200.0, 0.0, margin, -margin, 0.0);
+	gridTo(rad, 200.0, -margin, 200.0, -200.0 + margin,14.0,16.0);
+	aTo(rad, 200.0, -200.0, 0.0, margin, -margin, 0.0,14.0,16.0);
 	//plan_.arcTo(rad, 200.0*rate, -200.0 - aRad, 200.0 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
-	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0);
-	aTo(rad, -100, -200, margin, 0, 0, margin);
-	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin);
-	aTo(rad, -100, -100, 0, -margin, margin, 0);
-	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0);
-	aTo(rad, 0, -100, -margin, 0, 0, margin);
-	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0);
+	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0,14.0,16.0);
+	aTo(rad, -100, -200, margin, 0, 0, margin,14.0,16.0);
+	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin,14.0,16.0);
+	aTo(rad, -100, -100, 0, -margin, margin, 0,14.0,16.0);
+	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0,14.0,16.0);
+	aTo(rad, 0, -100, -margin, 0, 0, margin,14.0,16.0);
+	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0,14.0,16.0);
 }
 
 CarPawnSimApi::CarPawnSimApi(const Params& params,
@@ -121,6 +125,9 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	: PawnSimApi(params),
 	keyboard_controls_(keyboard_controls)
 {
+	lastTime_ = FPlatformTime::Seconds();
+		//GetWorld()->GetRealTimeSeconds();
+		//UGameplayStatistics::GetRealTimeSeconds(GetWorld());
 	mode_ = PLAN;
 	fb_ = PD;
 	level_ = LGRIDS;
@@ -159,7 +166,9 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	int dirTol = 10;
 	int xTol = 10;
 	int yTol = 10;
-	printConsts(A, B, cirTol, dirTol, xTol, yTol);
+	int FPS_est = 30;
+	int MSPF_est = 1000 / FPS_est;
+	printConsts(MSPF_est, cirTol);
 	// TODO: dx,dy meaning depends on line vs arc segment
 	pt2 g = {0.0,30.0};
 	//plan_.getWaypoint(g);
@@ -168,16 +177,23 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	auto positional = st.kinematics_estimated.pose.position;
 	pt2 pos2(positional.x(), positional.y());
 	auto speed = st.speed;
-	auto acc = 0;
+	auto accel = 0;
 	/* dir tol pos vel acc*/
 	if (relative) {
 		pt2 gRel = pos2 - g;
 		pt2 d = gRel.unit();
-		printCtrl(acc,dir(d.x), dir(d.y), vel(speed), pos(0), pos(-gRel.y));
+		// @TODO: Put the right numbers here
+		int t = 0;
+		double k = curND_.isArc ? 1.0 / curND_.signedRad() : 0.0; 
+		double vLo = curND_.vlo, vHi = curND_.vhi;
+		printCtrl(acc(accel), curv(k), t, vel(vHi),vel(vLo), pos(0), pos(-gRel.y));
 	} else {
 		pt2 gRel = g - pos2;
 		pt2 d = gRel.unit();
-		printCtrl(acc,dir(d.x), dir(d.y), vel(speed), pos(g.x), pos(g.y));
+		int t = 0;
+		double k = curND_.isArc ? 1.0 / curND_.signedRad(): 0.0;
+		double vLo = curND_.vlo, vHi = curND_.vhi;
+		printCtrl(acc(accel),curv(k),t,vel(vHi),vel(vLo), pos(g.x), pos(g.y));
 	}
 	//skipCtrls();
 	plan_.connect(plan_.last(), 0);
@@ -434,12 +450,22 @@ void CarPawnSimApi::updateCarControls()
 			//pt2 projY = diff.proj(dir3);
 			pt2 g = diff.rebase(dir2);
 			/* dir tol pos vel acc*/
-			printSensors(dir(dir2.x), dir(dir2.y), vel(speed), pos(g.x), pos(g.y));
-			printCtrl(acc(a), dir(dir2.x), dir(dir2.y), acc(w), pos(g.x), pos(g.y));
+			int t = 0; // TODO
+			double k = curND_.isArc ? (1.0 / curND_.signedRad()) : 0.0;
+			double vLo = curND_.vlo, vHi = curND_.vhi;	
+			double newTime = FPlatformTime::Seconds();
+			printSensors(tim(newTime-lastTime_), vel(speed), pos(g.x), pos(g.y));
+			printCtrl(acc(a), curv(k),0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
+			lastTime_ = newTime;
 		} else {
 			pt2 g = way;
-			printSensors(dir(dir2.x), dir(dir2.y), vel(speed), pos(g.x), pos(g.y));
-			printCtrl(acc(a), dir(dir2.x), dir(dir2.y), acc(w), pos(g.x), pos(g.y));
+			int t = 0; // TODO
+			double k = curND_.isArc ? 1.0 / curND_.signedRad() : 0.0;
+			double vLo = curND_.vlo, vHi = curND_.vhi;
+			double newTime = FPlatformTime::Seconds();
+			printSensors(tim(newTime-lastTime_), vel(speed), pos(g.x), pos(g.y));
+			printCtrl(acc(a), curv(k), 0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
+			lastTime_ = newTime;
 		}
 		
 		char buf[256];

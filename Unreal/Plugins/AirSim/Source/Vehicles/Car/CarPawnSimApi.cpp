@@ -61,13 +61,13 @@ void CarPawnSimApi::loadRect() {
 	double rad = ((double)RADIUS_CM) / 100.0;
 	plan_.lineTo(rad, 0.0, 0.0, 0.00, 27.0, 0.5, 3.0);
 	plan_.arcTo(3.0, 3.0, 30.0, 3.0, 27.0, 0.0, 27.0, 3.0, 4.5);
-	plan_.lineTo(rad, 3.0, 30.0, 149.0, 30.0, 4.5, 8.0);
-	plan_.arcTo(3.0, 152.0, 27.0, 149.0, 27.0, 149.0, 30.0, 8.0, 9.0);
-	plan_.lineTo(rad, 152.0, 27.0, 152.0, -149.0, 12.0, 14.0);
-	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0, 14.0, 16.0);
-	plan_.lineTo(rad, 149.0, -152.0, 3.0, -152.0, 14.0, 16.0);
-	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0, 14.0, 16.0);
-	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0, 14.0, 16.0);
+	plan_.lineTo(rad, 3.0, 30.0, 149.0, 30.0, 3.5, 4.5);
+	plan_.arcTo(3.0, 152.0, 27.0, 149.0, 27.0, 149.0, 30.0, 4.0, 6.0);
+	plan_.lineTo(rad, 152.0, 27.0, 152.0, -149.0, 4.0, 6.0);
+	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0, 4.0, 6.0);
+	plan_.lineTo(rad, 149.0, -152.0, 3.0, -152.0, 4.0, 6.0);
+	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0, 4.0, 6.0);
+	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0, 4.0, 6.0);
 }
 
 void CarPawnSimApi::gridTo(double a, double b, double c, double d, double e, double f, double g) {
@@ -90,34 +90,34 @@ void CarPawnSimApi::loadGrids() {
 	double aRad = 3.0;
 	double rate = 0.3;
 	double margin = (aRad/* / rate*/);
-	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, 1.0, 5.0);
-	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, 5.0, 8.0);
-	gridTo(rad, margin, 115.0,     300.0-margin, 115.0, 5.0, 10.0);
-	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin, 10.0, 14.0);
-	gridTo(rad, 300.0, 115.0-margin,   300.0, margin, 14.0, 16.0);
-	aTo(rad, 300.0, 0, 0, margin, -margin, 0, 14.0, 16.0);
-	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0, 14.0, 16.0);
-	aTo(rad, 200, 0, margin, 0, 0, margin, 14.0,16.0);
-	gridTo(rad, 200.0, margin,     200.0, 100.0-margin,14.0,16.0);
-	aTo(rad, 200, 100, 0, -margin, -margin, 0,14.0,16.0);
-	gridTo(rad, 200.0-margin, 100.0,   100.0+margin, 100.0,14.0,16.0);
-	aTo(rad, 100, 100, margin, 0, 0, -margin,14.0,16.0);
-	gridTo(rad, 100.0, 100.0-margin,   100.0, 0.0+margin,14.0,16.0);
-	aTo(rad, 100, 0, 0, margin, margin, 0,14.0,16.0);
-	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0,14.0,16.0);
-	aTo(rad, 200, 0, -margin, 0, 0, -margin,14.0,16.0);
+	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, 2.0, 3.0);
+	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, 2.0, 3.0);
+	gridTo(rad, margin, 115.0,     300.0-margin, 115.0, 2.0, 3.0);
+	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin, 2.0, 3.0);
+	gridTo(rad, 300.0, 115.0-margin,   300.0, margin, 2.0, 3.0);
+	aTo(rad, 300.0, 0, 0, margin, -margin, 0, 2.0, 3.0);
+	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0, 2.0, 3.0);
+	aTo(rad, 200, 0, margin, 0, 0, margin, 2.0,3.0);
+	gridTo(rad, 200.0, margin,     200.0, 100.0-margin,2.0,3.0);
+	aTo(rad, 200, 100, 0, -margin, -margin, 0,2.0,3.0);
+	gridTo(rad, 200.0-margin, 100.0,   100.0+margin, 100.0,2.0,3.0);
+	aTo(rad, 100, 100, margin, 0, 0, -margin,2.0,3.0);
+	gridTo(rad, 100.0, 100.0-margin,   100.0, 0.0+margin,1.0,2.0);
+	aTo(rad, 100, 0, 0, margin, margin, 0,1.0,2.0);
+	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0,1.0,2.0);
+	aTo(rad, 200, 0, -margin, 0, 0, -margin,1.0,2.0);
 	//plan_.arcTo(rad, 200.0*rate, 0.0 - aRad, 200 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
 	//gridTo(rad, 100.0, 0.0, 200.0, 0.0);
-	gridTo(rad, 200.0, -margin, 200.0, -200.0 + margin,14.0,16.0);
-	aTo(rad, 200.0, -200.0, 0.0, margin, -margin, 0.0,14.0,16.0);
+	gridTo(rad, 200.0, -margin, 200.0, -200.0 + margin,1.0,2.0);
+	aTo(rad, 200.0, -200.0, 0.0, margin, -margin, 0.0,1.0,2.0);
 	//plan_.arcTo(rad, 200.0*rate, -200.0 - aRad, 200.0 * rate - aRad, -aRad, 200.0*rate - aRad, 0);
-	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0,14.0,16.0);
-	aTo(rad, -100, -200, margin, 0, 0, margin,14.0,16.0);
-	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin,14.0,16.0);
-	aTo(rad, -100, -100, 0, -margin, margin, 0,14.0,16.0);
-	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0,14.0,16.0);
-	aTo(rad, 0, -100, -margin, 0, 0, margin,14.0,16.0);
-	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0,14.0,16.0);
+	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0,1.0,2.0);
+	aTo(rad, -100, -200, margin, 0, 0, margin,1.0,2.0);
+	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin,2.0,3.0);
+	aTo(rad, -100, -100, 0, -margin, margin, 0,2.0,3.0);
+	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0,2.0,3.0);
+	aTo(rad, 0, -100, -margin, 0, 0, margin,2.0,3.0);
+	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0,2.0,3.0);
 }
 
 CarPawnSimApi::CarPawnSimApi(const Params& params,
@@ -130,7 +130,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 		//UGameplayStatistics::GetRealTimeSeconds(GetWorld());
 	mode_ = PLAN;
 	fb_ = PD;
-	level_ = LGRIDS;
+	level_ = LRECT;
 	curNode_ = -1;
 	curND_ = {};
 	defaultW = 0.0f;
@@ -385,14 +385,14 @@ void CarPawnSimApi::updateCarControls()
 		pt2 wayDiff = (way - pos2).unit();
 		pt2 dir2 = pt2(direction.x(), direction.y()).unit();
 		bool goLeft = wayDiff.isLeftOf(dir2);
-		auto accelRate = 0.15f;
-		auto br = 0.2f;
-		auto dist = (pt2(positional[0],positional[1]) - way).mag();
+		auto accelRate = 0.35f;
+		auto br = 0.15f;
+		auto dist = (pt2(positional[0],positional[1]) - way).mag() - (0.01 * RADIUS_CM);
 		auto ep = 1.0 / GAverageFPS;
-		auto vv = st.speed + accelRate * ep;
+		auto vv = (st.speed + accelRate * ep) - curND_.targetVelocity();
 		auto dd = dist - (ep * st.speed + ep * ep * 0.5f * accelRate);
-		double SPEED_LIM = 16.0;
-		bool close = (vv * vv >= dd / (2.0f * br)) || vv >= SPEED_LIM;
+		//double SPEED_LIM = curND_.targetVelocity();
+		bool close = (vv * vv >= dd / (2.0f * br));// || vv >= SPEED_LIM;
 		double w = st.kinematics_estimated.twist.angular.z();
 		// Clean up bad data, use last value if ludicrously large
 		if (w*w >= 18000.0) {
@@ -418,6 +418,7 @@ void CarPawnSimApi::updateCarControls()
 			double str = P * leftP + D * leftD;
 			ai_controls.steering = str;
 			ai_controls.throttle = close ? 0.0f : 0.99f;
+			ai_controls.brake = close ? 1.0f : 0.0f;
 			char buf[256];
 			snprintf(buf, 256, "%f\t%f", dir2.sin2(wayDiff), wayDiff.sin2(dir2));
 			UAirBlueprintLib::LogMessageString("TESTIT: ", buf, LogDebugLevel::Informational);

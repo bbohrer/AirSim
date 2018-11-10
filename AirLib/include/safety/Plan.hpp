@@ -20,6 +20,8 @@ struct NodeDatum {
 	double vlo; // m/s
 	double vhi; // m/s
 
+	double targetVelocity() { return (vlo + vhi) * 0.5; }
+
 	double signedRad() {
 		if (isArc) {
 			if ((center - start).isLeftOf(end - start)) {

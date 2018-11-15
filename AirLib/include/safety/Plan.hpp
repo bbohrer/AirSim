@@ -10,45 +10,56 @@ extern ENGINE_API float GAverageFPS;
 
 using namespace msr::airlib;
 
-
+// One section of a path, can be either straight or arc
 struct NodeDatum {
-	pt2 start; // meters from global Unreal origin
-	pt2 end;
-	pt2 center;
-	bool isArc;
-	double rad; // metersm
-	double vlo; // m/s
-	double vhi; // m/s
+	pt2 start;  // start point, represented in meters from Unreal Engine origin
+	pt2 end;    // end point
+	pt2 center; // center point, only used for arc
+	bool isArc; 
+	double rad; // thickness in meters of line or arc, uncertainty
+	double vlo; // lower velocity limit *at endpoint* in  m/s
+	double vhi; // upper velocity limit *at endpoint* in m/s
+	bool isCcw;
 
+	// Feedback controller should aim for middle of speed limits
 	double targetVelocity() { return (vlo + vhi) * 0.5; }
 
+	// Radius adjusted for clockwise vs. counter-clockwise
 	double signedRad() {
 		if (isArc) {
+			double r = (center - start).mag();
 			if ((center - start).isLeftOf(end - start)) {
-				return rad;
+				return r;
 			}
 			else {
-				return -rad;
+				return -r;
 			}
 		}
 		else {
 			return std::numeric_limits<double>::infinity();
 		}
 	}
-
+	 
+	// Have we finished traversing this section?
 	bool atEnd(pt2 p) {
 		return (p - end).mag() <= rad;
 	}
 
-	pt2 tangentAt(pt2 here) {
+	// Gets the tangent vector to the section at its *closest point* to "here", which 
+	// need not actually lie on the section
+	pt2 tangentAt(pt2 here, bool ccw) {
 		if (isArc) {
-			//double theMag = (start - center).mag();
-			return  (here - center).unit().rot(-0.5*M_PI);
-
+			pt2 rel = here - center;
+			pt2 relDir = rel.unit();
+//			bool cw = //rel.isLeftOf(end - center);
+			double delt =  ccw ? 0.5*M_PI : -0.5*M_PI;
+			pt2 rot = relDir.rot(delt);
+			return  rot;
 		} else 
 			return (start - end).unit();
 	}
 
+	// Tangent at the end of section, pointing toward start
 	pt2 endTangent() {
 		pt2 tan =
 			  isArc 
@@ -57,6 +68,7 @@ struct NodeDatum {
 		return tan.unit();
 	}
 
+	// Tangent at start of section, pointing toward end.
 	pt2 startTangent() {
 		pt2 tan =
 			isArc
@@ -65,28 +77,28 @@ struct NodeDatum {
 		return tan.unit();
 	}
 
+	// Distance of point to the section
+	// Tricky geometry because this is distance to *the nearest part of the section*
 	double distance(pt2 p) {
 		if (isArc) {
 			pt2 relM = p - center;
 			pt2 relS = start - center;
 			pt2 relE = end - center;
 
-			double thM = atan2(relM.x, relM.y), thS = atan2(relS.x, relS.y), thE = atan2(relE.x, relE.y);
+			double thM = atan2(relM.y, relM.x), thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
 			double thMin = std::min(thS, thE), thMax = std::max(thS, thE);
 			double rAvg = (relE.mag() + relS.mag()) * 0.5;
 			double rMin = rAvg - (rad * 0.5);
 			double rMax = rAvg + (rad * 0.5);
 			if (thM <= thMin) {
 				pt2 relMin = pt2(cos(thMin), sin(thMin))*rAvg;
-				return (relMin - p).mag();
-			}
-			else if (thMax <= thM) {
+				return (relMin - relM).mag();
+			} else if (thMax <= thM) {
 				pt2 relMax = pt2(cos(thMax), sin(thMax))*rAvg;
-				return (relMax - p).mag();
-			}
-			else {
+				return (relMax - relM).mag();
+			} else {
 				pt2 rel = pt2(cos(thM), sin(thM))*rAvg;
-				return (rel - p).mag();
+				return (rel - relM).mag();
 			}
 		}
 		else {
@@ -97,21 +109,20 @@ struct NodeDatum {
 			double c = segRel.cos2(mRel);
 			double theCos = abs(c);
 			pt2 proj = start + (segRel.unit() * theCos * mRel.mag());
-				//segRel * ((mRel*segRel) / (segRel*segRel));
 			pt2 segRelM = p - proj;
-			//) <= rad
 			return std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag());
 		}
 	}
 };
 
-struct Mob { // Mobile entity
+struct Mob { // Mobile entity, a.k.a. the car
 	pt2 p; // meters from global Unreal origin
 	pt2 v; // meters/sec
 	Mob() {};
 	Mob(pt2 pp, pt2 vv) : p(pp), v(vv) {};
 };
 
+// The whole plan. See .cpp file for docs
 class Plan {
 public:
 	Plan(int nC,
@@ -127,7 +138,6 @@ public:
 	bool isRecurrent();
 
 	bool isAtDeadEnd();
-	static const int PRECISION = 30;
 	static const int SUCCESS = 0;
 	static const int FAILURE = -1;
 
@@ -140,7 +150,7 @@ public:
 	void arcTo(double rad, double wpX, double wpY, 
 		double cX, double cY,
 		double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(),
-		double vLo  = 0.0, double vHi = 0.0);
+		double vLo  = 0.0, double vHi = 0.0, bool isCw = true);
 	int last();
 	void connect(int from, int to);
 	std::vector<int>& getSuccs(int node);

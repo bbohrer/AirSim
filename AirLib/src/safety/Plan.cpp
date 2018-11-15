@@ -1,18 +1,8 @@
 /* 
  * The Plan represents all the places that the vehicle wishes to go in the future.
- * It is represented as a directed graphs where the vertices are waypoints with radii.
- * The radius determines the max safe velocity within that waypoint.
- * The edges are the intersections between adjacent waypoint circles; their maximum safe velocity is determined 
- * by the radius of the largest inscribed circle of the this intersection.
- * (this relationship stems from the fact that braking and steering are used for safety and that braking and steering effectiveness
- *  depend on velocity)
- * Generally speaking, a larger number of circles means that these intersections are also larger so the speed limits are higher.
- * However, a large number of circles also demands a faster control cycle so that we do not, say, pass through 3 circles in the plan
- * by the next time the controller loops.
- * One of our goals in configuration is to set the fidelty on the plan so that it exploits available processor speed without surpassing it.
- * The update rate of sensors is also relevant, but in cases where the processor is significantly faster than the sensors,
- * estimation can be used to run the controller at higher rate
- * 
+ * It is represented as a directed graph where the vertices are path sections (lines or arcs).
+ * Edges determine which path sections may succeed each other.
+ *
  * Different graph structures represent different styles of driving.
  * A chain graph represents a deterministic plan, where the only flexibility provided to the controller is which part of
  * the waypoint circle it drives through (this certain level of control is necessary to account for sensor/actuator imperfection and for imperfect computations in
@@ -23,19 +13,9 @@
  * Cyclic graphs are quite useful as they represent continuous patrol missions. As with go-to missions, they can have branches
  * to provide robustness.
  *
- * TODO (decreasing priority):
- *  Basic structure for storing plans
- *  Derived computations: speed limits, connectivity, cyclicity
- *  High-level utilities (draw line, draw arc, draw splin)
- *  Connect to frame rate
- *  Build appropriate environment for this
- *  Build controller around this
- *  Feasability /robustness analysis
- *  Estimators
- *  Frequency-of-visit data for better nondeterministic patrols
+ * See .hpp file for data structure details and helpers
  */
 
-//#include "CarPawnSimApi.h"
 #include "AirBlueprintLib.h"
 #include "UnrealSensors/UnrealSensorFactory.h"
 #include "safety/Plan.hpp"
@@ -46,30 +26,10 @@
 #include <exception>
 #include <set>
 
-//#include "ProceduralMeshComponent.h"
-//#include "ActorFactories/ActorFactoryBasicShape.h"
-//#include "ActorFactoryBasicShape.generated.h"
-//#include "AssetRegistryModule.h"
-//#include "AssetData.h"
-
-//#include "CarPawnApi.h"
-
 using namespace msr::airlib;
 
 
-/*struct NodeDatum {
-	double x;   // meters from global Unreal origin
-	double y;   // meters from global Unreal origin
-	double rad; // meters
-};
-
-struct Mob { // Mobile entity
-	double x;
-	double y;
-	double vx;
-	double vy;
-};
-*/
+// constructor
 Plan::Plan(int nC,
 	vector<NodeDatum> nD,
 	vector<vector<int>> a,
@@ -83,60 +43,34 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		m_vehicle = Mob(pt2(x,y),pt2(0,0));
 	}
 
+	// Add node (path section), optionally with predecessors
 	int Plan::addNode(NodeDatum nd) { return addNode(vector<int>(),nd); }
-	static int gFoo = 0;
 	int Plan::addNode(int pred, NodeDatum nd) { 
-		auto templ = NULL;
-		auto owner = NULL;
-		FVector pos = {}; 
-		
-		UWorld* uw = GWorld;
-		//AActor* ac = SpawnActor<CubeActor>();
-		FVector location( 0.0, 0.0, 0.0);
-		gFoo++;
-		auto rot = FRotator(0, 0, 0);
-		auto cls = ACubeActor::StaticClass();
-		// FActorSpawnParameters
-		FActorSpawnParameters fasp; 
-		ESpawnActorCollisionHandlingMethod sachm = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		fasp.SpawnCollisionHandlingOverride = sachm;
-		ACubeActor* act = uw->SpawnActor<ACubeActor>(cls, location, rot, fasp);
-		act->xCm = nd.center.x * 100;
-		act->yCm = nd.center.y * 100;
-		act->zCm = 500 + (nd.rad * 100);
-		act->radiusCm = (int)(nd.rad * 100.0);
-		act->CreateCube();
-		act->GetRootComponent()->DestroyPhysicsState();
-		/*char buf[256];
-		snprintf(buf, 256, "(%d, %d, %d)", act->xCm, act->yCm, act->zCm);
-		UAirBlueprintLib::LogMessageString("CUBE: ", buf, LogDebugLevel::Failure);*/
-
-		int x = 2 + 2;
-		//CubeActor ca(100);
-//		UWorld::SpawnActor()
-		//UActor *actor();
-		
-		//FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		//IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-//
-	//	auto ad = AssetRegistry.GetAssetByObjectPath(UActorFactoryBasicShape::BasicCube);
-		/** Initialize NewActorClass if necessary, and return default actor for that class. */
-		//UActorFactoryBasicShape ufac;
-		//AActor* foo = ufac.GetDefaultActor(ad);
-
-		/** Initialize NewActorClass if necessary, and return that class. */
-		//UClass* uc = ufac.GetDefaultActorClass(ad);
-
-		/** Given an instance of an actor pertaining to this factory, find t *
-		AActor a =
-			UWorld::SpawnActor(uclass, NULL, &pos, NULL, NULL, true, false, owner, NULL, true);
-			SpawnActor();
-		UPrimitiveComponent cmp;
-		a.Destroy();*/
 		vector<int> preds;
 		preds.push_back(pred);
-		return addNode(preds,nd); 
+		int ret = addNode(preds, nd);
+		bool RENDER_GEOM = false;
+		// Debugging feature: Draw 3D geometry on screen corresponding to the plan
+		if (RENDER_GEOM) {
+			UWorld* uw = GWorld;
+			FVector location(0.0, 0.0, 0.0);
+			auto rot = FRotator(0, 0, 0);
+			auto cls = ACubeActor::StaticClass();
+			FActorSpawnParameters fasp;
+			ESpawnActorCollisionHandlingMethod sachm = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			fasp.SpawnCollisionHandlingOverride = sachm;
+			ACubeActor* act = uw->SpawnActor<ACubeActor>(cls, location, rot, fasp);
+			act->xCm = nd.center.x * 100;
+			act->yCm = nd.center.y * 100;
+			act->zCm = 500 + (nd.rad * 100);
+			act->radiusCm = (int)(nd.rad * 100.0);
+			act->CreateCube();
+			act->GetRootComponent()->DestroyPhysicsState();
+		}
+		return ret;
 	}
+
+	// Update graph data structures for added node
 	int Plan::addNode(vector<int> preds, NodeDatum nd) {
 		int thisNode = m_nodeCount++;
 		for (auto it = preds.begin(); it != preds.end(); it++) {
@@ -159,6 +93,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		return true;
 	}
 
+	// Returns true if no way out of current waypoint
 	bool Plan::isAtDeadEnd() {
 		std::set<int> nodesAt;
 		for (int i = 0; i < m_nodeCount; i++) {
@@ -194,11 +129,11 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		// if we reach this point, must have been a recurrent set, not dead-end
 		return false; 
 	}
-	static const int PRECISION = 30;	
 	static const int SUCCESS = 0;
 	
 	std::vector<int>& Plan::getSuccs(int node) { return m_adj[node]; }
 
+	// get node by index
 	int Plan::getNode(int x, NodeDatum& outP) {
 		if (x >= m_nodeCount) {
 			return FAILURE;
@@ -206,6 +141,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		outP = m_nodeData[x];
 		return SUCCESS;
 	};
+	// Get "closest", "next" node heuristically from vehicle position and orientation
 	int Plan::getWaypoint(pt2& outP) {
 		auto curr = getCurNode();
 		if (curr < 0) {
@@ -214,6 +150,9 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		auto currData = m_nodeData[curr];
 		Mob m = m_vehicle;
 		pt2 v = m.v;
+
+		// "Metric" tells us how "close" / "preferable" a waypoint is by combination of distance
+		// and difference-in-orientation
 		double minMetric = std::numeric_limits<double>::infinity();
 		double minSin = 0.0;
 		pt2 minPoint = {0,0};
@@ -222,12 +161,12 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 			return FAILURE;
 		}
 		pt2 mc = m.p;
-		/* TODO: Check whether update needed for new planner data structures */
 		for (auto it = succs.begin(); it != succs.end(); it++) {
 			int i = *it;
 			auto node = m_nodeData[i];
 			double dist = node.distance(mc);
 			double theSin = node.startTangent().sin2(v);
+			// Metric is sin-of-angle-between * distance
 			auto metr = theSin * dist;
 			if (metr < minMetric) {
 				minMetric = metr;
@@ -239,7 +178,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		return SUCCESS;
 	}
 
-	/* Returns index of the node containing the mob. 
+	/* Returns index of the node containing the vehicle. 
 	 * If mob is in multiple nodes, returns the one whose center is closest.
 	 * If in is in no nodes, returns negative int. */
 	int Plan::getCurNode() {
@@ -260,7 +199,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 			NodeDatum dat = m_nodeData[*it];
 			auto c = dat.center;
 			auto distSq = (c.x - mob.p.x)*(c.x - mob.p.x) + (c.y - mob.p.y)*(c.y - mob.p.y);
-			if (distSq < minDistSq) {
+			if (distSq <= minDistSq) {
 				minDistSq = distSq;
 				iMin = *it;
 			}
@@ -275,11 +214,6 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		if (std::isnan(mX) || std::isnan(mY)) {
 			mX = m_vehicle.p.x; mY = m_vehicle.p.y;
 		}
-		/*if (wpX == mX && wpY == mY) {
-			return;
-		}*/
-		/*auto deltaX = (wpX - mX) / precision;
-		auto deltaY = (wpY - mY) / precision;*/
 		int curNode = m_nodeCount-1;
 		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {}, false, rad, vLo, vHi };
 		if (curNode < 0) {
@@ -289,8 +223,9 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		}
 	}
 
-	void Plan::arcTo(double rad, double wpX, double wpY, double cX, double cY, double mX, double mY, double vLo, double vHi) {
-		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {cX,cY}, true, rad, vLo, vHi };
+	// Create a new arc-shaped section
+	void Plan::arcTo(double rad, double wpX, double wpY, double cX, double cY, double mX, double mY, double vLo, double vHi, bool ccW) {
+		NodeDatum nd = { {mX, mY}, {wpX,wpY,}, {cX,cY}, true, rad, vLo, vHi, ccW };
 		if (std::isnan(mX) || std::isnan(mY)) {
 			mX = m_vehicle.p.x; mY = m_vehicle.p.y;
 		}
@@ -302,6 +237,8 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		}
 	}
 
+	// Does the node contain the vehcile? 
+	// Basically nasty geometry
 	bool Plan::nodeContains(int i, Mob m) {
 		pt2 mc = m.p;
 		NodeDatum dat = m_nodeData[i];
@@ -328,9 +265,6 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 			pt2 segRelM = mc - proj;
 			return std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag()) <= dat.rad;
 		}
-		/*auto cx = dat.p.x, cy = dat.p.y;
-		auto distSq = (cx - m.p.x)*(cx - m.p.x) + (cy - m.p.y)*(cy - m.p.y);
-		return dat.rad*dat.rad >= distSq;*/
 	}
 
 	int Plan::last() { return m_nodeCount - 1; }

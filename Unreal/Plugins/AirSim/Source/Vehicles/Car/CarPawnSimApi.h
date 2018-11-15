@@ -27,7 +27,8 @@ enum FeedbackMode {
 
 enum Level {
 	LRECT = 0,
-	LGRIDS
+	LGRIDS,
+	LCLOVER
 };
 
 class CarPawnSimApi : public PawnSimApi
@@ -65,8 +66,10 @@ private:
     void updateCarControls();
 	void loadRect();
 	void loadGrids();
+	void loadClover();
 	void gridTo(double a, double b, double c, double d, double e, double f, double g);
 	void aTo(double r, double cornX, double cornY, double fromX, double fromY, double toX, double toY, double f, double g);
+	void parcTo(double rad, pt2 to, pt2 center, pt2 from, bool cw);
 private:
     std::unique_ptr<msr::airlib::CarApiBase> vehicle_api_;
     std::vector<std::string> vehicle_api_messages_;

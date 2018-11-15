@@ -1,38 +1,20 @@
+/* This is an actor which displays a static code at given location in the world.
+* This is used for visual in-game debugging of plans
+*/
+
 #include "safety/CubeActor.h"
 #include "ConstructorHelpers.h"
 #include "Engine.h"
-//static int Mmagg = 100 * ;
-//static int xoff = 0;
-//static int yoff = 0;
+
 ACubeActor::ACubeActor() {
-	//char buf[256];
-	//snprintf(buf, 256, "%d", Mmagg);
 	radiusCm = xCm = yCm = zCm = 0;
-	//xoff += MAG;
-	//yoff += MAG;
-	//Mmagg *= 2;
 	mesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("CubeActor"));
 	RootComponent = mesh;
-	//ConstructorHelpers::FObjectFinder<UMaterial> MaterialOb(TEXT("Material'/Game/VertexMat.VertexMat'"));
-	//Material =  GEngine->WireframeMaterial;
-		//MaterialOb.Object;
-	//mesh->RegisterComponent();
-	//mesh->bUseAsyncCooking = true;
 }
 
-void ACubeActor::PostActorCreated() {
-	//Super::PostActorCreated(); CreateCube();
-}
-
-
-void ACubeActor::PostDuplicate(EDuplicateMode::Type ed) {
-	//Super::PostDuplicate(ed); CreateCube();
-}
-
-
-void ACubeActor::PostLoad() { 
-	//Super::PostLoad(); CreateCube(); 
-}
+void ACubeActor::PostActorCreated() {}
+void ACubeActor::PostDuplicate(EDuplicateMode::Type ed) {}
+void ACubeActor::PostLoad() { }
 
 void ACubeActor::CreateCube() {
 	FVector lll(xCm-radiusCm, yCm-radiusCm, zCm-radiusCm), llr(xCm-radiusCm, yCm-radiusCm, zCm+radiusCm), 
@@ -55,19 +37,7 @@ void ACubeActor::CreateCube() {
 	for (int i = 0; i < (sizeof(tris) / sizeof(tris[0])); i++) {
 		Triangles.Add(tris[i]);
 	}
-	/*Triangles.Add(2); Triangles.Add(0); Triangles.Add(4); //bot
-	Triangles.Add(2); Triangles.Add(4); Triangles.Add(6); //bot
-	Triangles.Add(5); Triangles.Add(4); Triangles.Add(6); //right
-	Triangles.Add(5); Triangles.Add(6); Triangles.Add(7); //right
-	Triangles.Add(0); Triangles.Add(4); Triangles.Add(1); //front
-	Triangles.Add(1); Triangles.Add(4); Triangles.Add(5); //front
-	Triangles.Add(0); Triangles.Add(1); Triangles.Add(2); //left
-	Triangles.Add(2); Triangles.Add(1); Triangles.Add(3); //left
-	Triangles.Add(1); Triangles.Add(5); Triangles.Add(7); //top
-	Triangles.Add(3); Triangles.Add(1); Triangles.Add(7); //top
-	Triangles.Add(2); Triangles.Add(3); Triangles.Add(6); //back
-	Triangles.Add(7); Triangles.Add(6); Triangles.Add(3); //back*/
-
+	
 	TArray<FVector> normals;
 	normals.Add(FVector(0, 0, -1)); normals.Add(FVector(0, 0, -1)); normals.Add(FVector(0, 0, -1)); //bot
 	normals.Add(FVector(0, 0, -1)); normals.Add(FVector(0, 0, -1)); normals.Add(FVector(0, 0, -1)); //bot
@@ -126,14 +96,8 @@ void ACubeActor::CreateCube() {
 	vertexColors.Add(gray); vertexColors.Add(gray); vertexColors.Add(gray);//back
 	vertexColors.Add(gray); vertexColors.Add(gray); vertexColors.Add(gray);//back
 
-	// tangents = TArray<FProcMeshTangent>()
-	//UV0 = TArray<FVector2D>()
-	//normals = TArray<FVector>()
 	mesh->CreateMeshSection_LinearColor(0, vertices, Triangles, normals, UV0, vertexColors, tangents, false);
-	//mesh->SetMaterial(0, Material);
-
-	// Enable collision data
-	//mesh->ContainsPhysicsTriMeshData(true);
-	bool isVisible = false;
+	
+	bool isVisible = true;
 	mesh->SetVisibility(isVisible, true);
 }

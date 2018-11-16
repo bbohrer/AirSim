@@ -51,7 +51,7 @@ int pos(double d) { return (int)(10.0*d); }
 int vel(double d) { return (int)(10.0*d); }
 int acc(double d) { return (int)(100.0*d); }
 int tim(double d) { return (int)(1000.0*d); }
-int curv(double d) {return (int)(100.0*d); }
+int curv(double d) {return (int)(1000.0*d); }
 
 /* Currently-UNUSED units, for posterity:
 * Direction vectors: Magnitude 10.
@@ -242,23 +242,29 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 		break;
 	default: break;
 	}
+	curNode_ = plan_.getCurNode();
+	plan_.getNode(curNode_, curND_);
+
 	// Log the initial constants
 	int FPS_est = GAverageFPS;
 	int MSPF_est = 1000 / FPS_est;
 	printConsts(MSPF_est, CIR_TOL/10);
 	// Compute and log initial control values
 	auto accel = 0; // Not accelerating yet
-	pt2 goal = { 0.0,30.0 }; // Initial goal point, TODO: change for each level
 	// Velocity limits *by time we reach waypoint*
 	double vLo = curND_.vlo, vHi = curND_.vhi;
 	// *K*urvature
 	double k = curND_.isArc ? 1.0 / curND_.signedRad() : 0.0;
 	int t = 0; // Time is relative to start of simulation!
 	if (COORDINATES_RELATIVE) {
-		pt2 gRel = pos2 - goal;
-		printCtrl(acc(accel), curv(k), t, vel(vHi),vel(vLo), pos(0), pos(-gRel.y));
+		auto orientation = st.kinematics_estimated.pose.orientation;
+		auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+		pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
+		pt2 rel = (curND_.end - pos2);
+		pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
+		printCtrl(acc(accel), curv(k), t, vel(vHi),vel(vLo), pos(g.x), pos(-g.y));
 	} else {
-		printCtrl(acc(accel),curv(k),t,vel(vHi),vel(vLo), pos(goal.x), pos(goal.y));
+		printCtrl(acc(accel),curv(k),t,vel(vHi),vel(vLo), pos(curND_.end.x), pos(curND_.end.y));
 	}
 	// Currently, all the levels are circular/loopable!
 	plan_.connect(plan_.last(), 0);
@@ -335,7 +341,8 @@ void CarPawnSimApi::updateCarControls()
 		st.kinematics_estimated.pose.position;
 	auto orientation = st.kinematics_estimated.pose.orientation;
 	auto vvec = orientation._transformVector({ (float)st.speed,0.0f,0.0f });
-	auto dvec = vvec;
+	auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+		//vvec;
 	pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
 	pt2 pos2(pvec.x(), pvec.y());
 	auto speed = st.speed;
@@ -493,11 +500,16 @@ void CarPawnSimApi::updateCarControls()
 		// Logging code
 		double vxy = vvec[0]*way.y;
 		double xvy = way.x * vvec[1];
-		double a = (ai_controls.throttle * (0.01*(ACCEL_MAX + BRAKE_MAX))) - (0.01*BRAKE_MAX);
+		double aUp = ai_controls.throttle * ACCEL_MAX;
+		double aDown = ai_controls.brake * -BRAKE_MAX;
+		double a = aUp + aDown;
 		double k = curND_.isArc ? 1.0 / curND_.signedRad() : 0.0;
 		double vLo = curND_.vlo, vHi = curND_.vhi;
 		if (COORDINATES_RELATIVE) {
-			pt2 g = (way-pos2).rebase(dir2); // Translates to vehicle-oriented coordinates
+			auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+			pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
+			pt2 rel = (way - pos2);
+			pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
 			/* *K*urvature */
 			printSensors(tim(ep), vel(speed), pos(g.x), pos(g.y));
 			printCtrl(acc(a), curv(k),0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));

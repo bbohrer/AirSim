@@ -104,12 +104,12 @@ pt2 pt2::operator-(pt2 const R) const { return { x - R.x, y - R.y }; }
 
 	pt2 pt2::rebase(pt2 other) {
 		//double mmag = this->mag();
-		double th = atan2(other.x, other.y);
+		double th = atan2(other.y, other.x);
 		////pt2 ounit = other.unit();
 		////pt2 xaxis = ounit.rot(0.5*M_PI);
 		////pt2 ref = pt2(proj(ounit).mag(), proj(xaxis).mag());
-//		pt2 ref = rot(th);
-		return other;//{ -ref.x,ref.y };
+		pt2 ref = rot(th);
+		return { -ref.x,ref.y };
 	}
 
 

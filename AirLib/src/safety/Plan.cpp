@@ -199,7 +199,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 			NodeDatum dat = m_nodeData[*it];
 			auto c = dat.center;
 			auto distSq = (c.x - mob.p.x)*(c.x - mob.p.x) + (c.y - mob.p.y)*(c.y - mob.p.y);
-			if (distSq <= minDistSq) {
+			if (distSq < minDistSq) {
 				minDistSq = distSq;
 				iMin = *it;
 			}

@@ -56,7 +56,7 @@ struct NodeDatum {
 			pt2 rot = relDir.rot(delt);
 			return  rot;
 		} else 
-			return (start - end).unit();
+			return (end - start).unit();
 	}
 
 	// Tangent at the end of section, pointing toward start
@@ -108,9 +108,10 @@ struct NodeDatum {
 			pt2 mRel = p - start;
 			double c = segRel.cos2(mRel);
 			double theCos = abs(c);
-			pt2 proj = start + (segRel.unit() * theCos * mRel.mag());
+			pt2 proj = isnan(theCos) ? start : start + (segRel.unit() * theCos * mRel.mag());
 			pt2 segRelM = p - proj;
-			return std::min(std::min(sRelM.mag(), eRelM.mag()), segRelM.mag());
+			double a = sRelM.mag(), b = eRelM.mag(), d = segRelM.mag();
+			return std::min(std::min(a, b), d);
 		}
 	}
 };
@@ -150,7 +151,7 @@ public:
 	void arcTo(double rad, double wpX, double wpY, 
 		double cX, double cY,
 		double mX = std::numeric_limits<double>::quiet_NaN(), double mY = std::numeric_limits<double>::quiet_NaN(),
-		double vLo  = 0.0, double vHi = 0.0, bool isCw = true);
+		double vLo  = 0.0, double vHi = 0.0, bool isCcw = true);
 	int last();
 	void connect(int from, int to);
 	std::vector<int>& getSuccs(int node);

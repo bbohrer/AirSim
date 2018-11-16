@@ -74,20 +74,20 @@ void printCtrl(int a, int k, int t, int vh, int vl, int xg, int yg) {
 
 /* BEGIN IMPLEMENTATION OF ENVIRONMENTS/LEVELS */
 // Desired radius of turns
-const int RADIUS_CM = 250;
+const int RADIUS_CM = 300;
 
 // Construct the "rectangular" level
 void CarPawnSimApi::loadRect() {
 	double rad = ((double)RADIUS_CM) / 100.0;
-	plan_.lineTo(rad, 0.0, 0.0, 0.00, 27.0, 0.5, 3.0);
-	plan_.arcTo(3.0, 3.0, 30.0, 3.0, 27.0, 0.0, 27.0, 3.0, 4.5);
-	plan_.lineTo(rad, 3.0, 30.0, 149.0, 30.0, 3.5, 4.5);
-	plan_.arcTo(3.0, 152.0, 27.0, 149.0, 27.0, 149.0, 30.0, 4.0, 6.0);
-	plan_.lineTo(rad, 152.0, 27.0, 152.0, -149.0, 4.0, 6.0);
-	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0, 4.0, 6.0);
-	plan_.lineTo(rad, 149.0, -152.0, 3.0, -152.0, 4.0, 6.0);
-	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0, 4.0, 6.0);
-	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0, 4.0, 6.0);
+	plan_.lineTo(rad, 0.0, 0.0, 0.00, 27.0, 0.5, 2.0);
+	plan_.arcTo(3.0, 3.0, 30.0, 3.0, 27.0, 0.0, 27.0, 0.5, 2.0);
+	plan_.lineTo(rad, 3.0, 30.0, 149.0, 30.0, 0.5, 2.0);
+	plan_.arcTo(3.0, 152.0, 27.0, 149.0, 27.0, 149.0, 30.0, 0.5, 2.0);
+	plan_.lineTo(rad, 152.0, 27.0, 152.0, -149.0, 0.5, 2.0);
+	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0, 0.5, 2.0);
+	plan_.lineTo(rad, 149.0, -152.0, 3.0, -152.0, 0.5, 2.0);
+	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0, 0.5, 2.0);
+	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0, 0.5, 2.0);
 }
 
 // Helper function to scale plan up/down. Useful when you want to tweak 
@@ -221,7 +221,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	// Which low-level feedback controller?
 	fb_ = PD;
 	// Which level/environment?
-	level_ = LGRIDS;
+	level_ = LRECT;
 	// What node are we currently following in the plan? None!
 	curNode_ = -1;
 	curND_ = {};
@@ -448,7 +448,8 @@ void CarPawnSimApi::updateCarControls()
 		//pt2 wayDiff = (way - pos2).unit(); // relative
 		// Distance until waypoint ENTERED
 		// TODO: Consider using NodeDatum.distance() function here
-		auto dist = (pt2(pvec[0],pvec[1]) - way).mag() - (0.01 * RADIUS_CM);
+		double distBuffer = 2.5;
+		auto dist = (pt2(pvec[0],pvec[1]) - way).mag() - distBuffer;
 		// Velocity after one timestep acceleration, RELATIVE to target vel
 		auto vv = (st.speed + ACCEL_MAX * ep) - curND_.targetVelocity();
 		// Distance after one timestep

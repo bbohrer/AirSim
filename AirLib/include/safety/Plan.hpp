@@ -45,6 +45,18 @@ struct NodeDatum {
 		return (p - end).mag() <= rad;
 	}
 
+	bool isLeftOf(pt2 p) {
+		if (isArc) {
+			if (isCcw) {
+				return (p - center).mag() >= (start - center).mag();
+			} else {
+				return (p - center).mag() <= (start - center).mag();
+			}
+		} else {
+			return tangentAt(p, isCcw).isLeftOf(p-start);
+		}
+	}
+
 	// Gets the tangent vector to the section at its *closest point* to "here", which 
 	// need not actually lie on the section
 	pt2 tangentAt(pt2 here, bool ccw) {
@@ -80,26 +92,33 @@ struct NodeDatum {
 	// Distance of point to the section
 	// Tricky geometry because this is distance to *the nearest part of the section*
 	double distance(pt2 p) {
+		double ret;
 		if (isArc) {
 			pt2 relM = p - center;
 			pt2 relS = start - center;
 			pt2 relE = end - center;
 
-			double thM = atan2(relM.y, relM.x), thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
-			double thMin = std::min(thS, thE), thMax = std::max(thS, thE);
 			double rAvg = (relE.mag() + relS.mag()) * 0.5;
-			double rMin = rAvg - (rad * 0.5);
-			double rMax = rAvg + (rad * 0.5);
-			if (thM <= thMin) {
+			double rp = relM.mag();
+			return (rp < rAvg) ? rAvg - rp : rp - rAvg;
+			//double thM = atan2(relM.y, relM.x), thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
+			//double thMin = std::min(thS, thE), thMax = std::max(thS, thE);
+			//double rMin = rAvg - (rad * 0.5);
+			//double rMax = rAvg + (rad * 0.5);
+			//double rp = 
+			/*if (thM <= thMin) {
+				// TODO: this calculation most likely wrong.
 				pt2 relMin = pt2(cos(thMin), sin(thMin))*rAvg;
-				return (relMin - relM).mag();
-			} else if (thMax <= thM) {
-				pt2 relMax = pt2(cos(thMax), sin(thMax))*rAvg;
-				return (relMax - relM).mag();
-			} else {
-				pt2 rel = pt2(cos(thM), sin(thM))*rAvg;
-				return (rel - relM).mag();
+				ret = (relMin - relM).mag();
 			}
+			else if (thMax <= thM) {
+				pt2 relMax = pt2(cos(thMax), sin(thMax))*rAvg;
+				ret = (relMax - relM).mag();
+			}
+			else {
+				pt2 rel = pt2(cos(thM), sin(thM))*rAvg;
+				ret = (rel - relM).mag();
+			}*/
 		}
 		else {
 			pt2 sRelM = p - start;
@@ -111,9 +130,21 @@ struct NodeDatum {
 			pt2 proj = isnan(theCos) ? start : start + (segRel.unit() * theCos * mRel.mag());
 			pt2 segRelM = p - proj;
 			double a = sRelM.mag(), b = eRelM.mag(), d = segRelM.mag();
-			return std::min(std::min(a, b), d);
+			ret = std::min(std::min(a, b), d);
+		}
+		assert(ret >= 0.0);
+		return ret;
+	}
+	double signedDistance(pt2 p) {
+		double d = distance(p);
+		if (isLeftOf(p)) {
+			return -d;
+		}
+		else {
+			return d;
 		}
 	}
+
 };
 
 struct Mob { // Mobile entity, a.k.a. the car

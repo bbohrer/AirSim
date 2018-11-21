@@ -115,8 +115,8 @@ void CarPawnSimApi::aTo(double r, double cornX, double cornY, double fromX, doub
 // Construct the "grids" level, which is all right-angle turns, but longer,
 // tighter, more complex than the Rectangle level
 void CarPawnSimApi::loadGrids() {
-	double rad = ((double)RADIUS_CM) / 100.0;
-	double margin = 3.0; // Turning area
+	double rad = 0.5;//((double)RADIUS_CM) / 100.0;
+	double margin = 0.2; // Turning area
 	bool b = true;
 	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, 2.0, 3.0);
 	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, 2.0, 3.0,b);
@@ -206,6 +206,7 @@ int X_TOL = 10;
 int Y_TOL = 10;
 
 
+static pt2 lastDir;
 /* Constructor for simulation object. Most "global" variables should be 
  * members initialized here, so that level stopping/restarting behaves 
  * reasonably */
@@ -269,6 +270,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 		pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
 		pt2 rel = (curND_.end - pos2);
 		pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
+		lastDir = dir2;
 		printCtrl(acc(accel), curv(k), t, vel(vHi),vel(vLo), pos(g.x), pos(-g.y));
 	} else {
 		printCtrl(acc(accel),curv(k),t,vel(vHi),vel(vLo), pos(curND_.end.x), pos(curND_.end.y));
@@ -364,6 +366,19 @@ void CarPawnSimApi::updateCarControls()
 	// Manual keyboard-based driving. Irrelevant for autonomous driving,
     // Useful for developing new environments / playing around
 	case KEYBOARD: {
+		// Notify planner of new position
+		plan_.setMob(pvec[0], pvec[1], vvec[0], vvec[1]);
+		// Ask planner for current or next waypoint
+		if (-1 == curNode_) {
+			curNode_ = plan_.getCurNode();
+		}
+		else if (curND_.atEnd(pos2)) {
+			auto succs = plan_.getSuccs(curNode_);
+			curNode_ = succs[0];
+		}
+		plan_.getNode(curNode_, curND_);
+
+		pt2 way = curND_.end;
 		// Print angular velocity ON-SCREEN for useful debugging
 		char buf[256];
 		snprintf(buf, 256, "%f", st.kinematics_estimated.twist.angular.z());
@@ -428,6 +443,27 @@ void CarPawnSimApi::updateCarControls()
 			UAirBlueprintLib::LogMessageString("Control Mode: ", "API", LogDebugLevel::Informational);
 			current_controls_ = vehicle_api_->getCarControls();
 		}
+		double aUp = current_controls_.throttle * ACCEL_MAX;
+		double aDown = current_controls_.brake * -BRAKE_MAX;
+		double a = aUp + aDown;
+		double k = curND_.isArc ? 1.0 / curND_.signedRad() : 0.0;
+		double vLo = curND_.vlo, vHi = curND_.vhi;
+		if (COORDINATES_RELATIVE) {
+			auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+			pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
+			pt2 rel = (way - pos2);
+			pt2 gOld = rel.rebase(lastDir);
+			pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
+			/* *K*urvature */
+			printSensors(tim(ep), vel(speed), pos(gOld.x), pos(gOld.y));
+			printCtrl(acc(a), curv(k), 0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
+		}
+		else {
+			pt2 g = way;
+			printSensors(tim(ep), vel(speed), pos(g.x), pos(g.y));
+			printCtrl(acc(a), curv(k), 0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
+		}
+		lastDir = dir2;
 		break;
 	}
     // Autonomous controller that follows the plan!!
@@ -448,7 +484,7 @@ void CarPawnSimApi::updateCarControls()
 		//pt2 wayDiff = (way - pos2).unit(); // relative
 		// Distance until waypoint ENTERED
 		// TODO: Consider using NodeDatum.distance() function here
-		double distBuffer = 2.5;
+		double distBuffer = level_ == LCLOVER ? 2.5 : 0.0;
 		auto dist = (pt2(pvec[0],pvec[1]) - way).mag() - distBuffer;
 		// Velocity after one timestep acceleration, RELATIVE to target vel
 		auto vv = (st.speed + ACCEL_MAX * ep) - curND_.targetVelocity();
@@ -456,7 +492,7 @@ void CarPawnSimApi::updateCarControls()
 		auto dd = dist - (ep * st.speed + ep * ep * 0.5f * ACCEL_MAX);
 		// Do we need to start braking?
 		// TODO: Braking is currently bang-bang, would be great to add PD
-		double HARD_LIMIT = 8.0;
+		double HARD_LIMIT = 28.0;
 		bool close = ((vv * vv >= dd / (2.0f * BRAKE_MAX))) || st.speed > HARD_LIMIT;
 		// For bang-bang steering
 		bool goLeft = wayDiff.isLeftOf(dir2);
@@ -474,19 +510,31 @@ void CarPawnSimApi::updateCarControls()
 			char buf[256];
 			// PD controller uses distance-to-path as proportional
 			// and orientation as "derivative" to control steering
-			double d = curND_.distance(pos2);
-			double leftD = wayDiff.sin2(dir2);// .sin2(doubleUnit);
+			//double dist = curND_.signedDistance(pos2);
+			double magP = wayDiff.sin2(dir2);// .sin2(doubleUnit);
 			auto cos = wayDiff.cos2(dir2);
 			auto sq = sqrt(1 - cos * cos);
 			bool l = wayDiff.isLeftOf(dir2);
 			snprintf(buf, 256, "Cos: %2.2f, Sq: %2.2f, L: %d", cos, sq, l);
 			UAirBlueprintLib::LogMessageString("STEER: ", buf, LogDebugLevel::Informational);
 
-			double leftP = (l) ? -d : d;
+			//float* leftsD = st.kinematics_estimated.twist.angular.data();
+			pt2 theRel = pos2 - curND_.start;
+			bool signage = theRel.isLeftOf(curND_.tangentAt(pos2,curND_.isCcw));
+			double leftP = magP; //signage ? -magP : magP;
+			double leftD = curND_.signedDistance(pos2);;
+
+				//leftsD[2];
+			//double fact = l;
+			snprintf(buf, 256, "%f", leftD);
+			UAirBlueprintLib::LogMessageString("ANGULATE: ", buf, LogDebugLevel::Informational);
 			//goLeft = (leftD >= 0);
-			double P = 0.8;
-			double D = 2.015;
+			double P = 2.0;
+			double D = 0.25;
 			double steer = P * leftP + D * leftD;
+			if (steer >= 1 || steer <= -1) {
+				int x = 1 + 1;
+			}
 			ai_controls.steering = steer;
 			// braking still bangbang
 			ai_controls.throttle = close ? 0.0f : 0.99f;
@@ -517,15 +565,17 @@ void CarPawnSimApi::updateCarControls()
 			auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
 			pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
 			pt2 rel = (way - pos2);
+			pt2 gOld = rel.rebase(lastDir);
 			pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
 			/* *K*urvature */
-			printSensors(tim(ep), vel(speed), pos(g.x), pos(g.y));
+			printSensors(tim(ep), vel(speed), pos(gOld.x), pos(gOld.y));
 			printCtrl(acc(a), curv(k),0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
 		} else {
 			pt2 g = way;
 			printSensors(tim(ep), vel(speed), pos(g.x), pos(g.y));
 			printCtrl(acc(a), curv(k), 0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
 		}
+		lastDir = dir2;
 		
 		// On-screen log
 		char buf[256];

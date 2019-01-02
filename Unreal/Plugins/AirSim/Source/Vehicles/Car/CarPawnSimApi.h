@@ -86,4 +86,6 @@ private:
 	NodeDatum curND_;
 	double defaultW;
 	double lastTime_;
+private:
+	bool atEnd(pt2 p, pt2 d, double v);
 };

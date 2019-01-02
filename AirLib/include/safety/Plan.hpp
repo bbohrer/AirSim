@@ -41,10 +41,20 @@ struct NodeDatum {
 	}
 	 
 	// Have we finished traversing this section?
-	bool atEnd(pt2 p) {
-		return (p - end).mag() <= rad;
+
+	double endDist(pt2 p, pt2 d, double v) {
+		double const T = 0.1; // 10Hz framerate lolol
+		/* auto dvec = orientation._transformVector({ (float) 0.0, 1.0, 0.0 });
+		pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
+		*/
+		pt2 rel = (end - p);
+		pt2 base = rel.rebase(d);
+		pt2 g = pt2(0, 0) - base; // Translates to vehicle-oriented coordinates
+		double dist = g.x - v * T;
+		return dist;
 	}
 
+	
 	bool isLeftOf(pt2 p) {
 		if (isArc) {
 			if (isCcw) {

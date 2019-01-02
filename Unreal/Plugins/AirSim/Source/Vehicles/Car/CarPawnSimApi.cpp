@@ -25,9 +25,9 @@ const int RADIUS_CM = 300;
 
 // Construct the "rectangular" level
 void CarPawnSimApi::loadRect() {
-	double off = 2.0;
+	double off = 12.0;
 	double rad = off;
-	bool ccw = false;
+	bool ccw = true;
 	//double rad = ((double)RADIUS_CM) / 100.0;
 	plan_.lineTo(rad, 0.0, 0.0, 0.00, 30.0 - off, 0.5, 2.0);
 	plan_.arcTo(off, off, 30.0, off, 30.0 - off, 0.0, 30.0 - off, 0.5, 2.0,ccw);
@@ -206,7 +206,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 
 	// Log the initial constants
 	int FPS_est = GAverageFPS;
-	int MSPF_est = 1000 / FPS_est;
+	int MSPF_est = 1.0 / FPS_est;
 	if (!m.isSaved())
 		m.saveTo("C:\\Users\\Brandon\\Documents\\out.csv");
 	m.consts(MSPF_est, CIR_TOL/10);
@@ -292,6 +292,25 @@ void CarPawnSimApi::updateRendering(float dt)
     }
 }
 
+bool CarPawnSimApi::atEnd(pt2 p, pt2 d, double v) {
+	auto succs = plan_.getSuccs(curNode_);
+	auto next = succs[0];
+	NodeDatum nextNode;
+	plan_.getNode(next, nextNode);
+	double k = 1.0 / nextNode.signedRad();
+	double eps = 1.0;
+	pt2 rel = nextNode.end - p;
+    pt2 g = pt2(0, 0) - rel.rebase(d); // Translates to vehicle-oriented coordinates
+	double dev = m.pathDevOf(k, eps, g.x, g.y);
+	bool altRet = dev < 0.5 && curND_.endDist(p, d, v) < 0.1;
+	bool ret = curND_.endDist(p, d, v) < 0;
+	if (altRet) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 // Main control function! Handles I/O n'At too
 void CarPawnSimApi::updateCarControls()
 {
@@ -326,7 +345,7 @@ void CarPawnSimApi::updateCarControls()
 		if (-1 == curNode_) {
 			curNode_ = plan_.getCurNode();
 		}
-		else if (curND_.atEnd(pos2)) {
+		else if (atEnd(pos2, dir2, speed)) {
 			auto succs = plan_.getSuccs(curNode_);
 			curNode_ = succs[0];
 		}
@@ -430,7 +449,8 @@ void CarPawnSimApi::updateCarControls()
 		// Ask planner for current or next waypoint
 		if (-1 == curNode_) {
 			curNode_ = plan_.getCurNode();
-		} else if (curND_.atEnd(pos2)) {
+			//} else if (curND_.atEnd(pos2)) {
+		} else if(atEnd(pos2, dir2, speed)){
 			auto succs = plan_.getSuccs(curNode_);
 			curNode_ = succs[0];
 		}
@@ -477,7 +497,8 @@ void CarPawnSimApi::updateCarControls()
 
 			//float* leftsD = st.kinematics_estimated.twist.angular.data();
 			pt2 theRel = pos2 - curND_.start;
-			bool signage = theRel.isLeftOf(curND_.tangentAt(pos2,curND_.isCcw));
+			pt2 tanAt = curND_.tangentAt(pos2, curND_.isCcw);
+			//bool signage = theRel.isLeftOf(tanAt);
 			double leftP = magP; //signage ? -magP : magP;
 			double leftD = curND_.signedDistance(pos2);;
 
@@ -544,7 +565,12 @@ void CarPawnSimApi::updateCarControls()
 //		UAirBlueprintLib::LogMessageString("Vel: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "from %d(%f,%f) to (%f,%f), left:%d", curNode_, curND_.start.x, curND_.start.y, way.x, way.y, goLeft);
 	//	UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
-		
+		snprintf(buf, 256, "@(%f,%f)  ->(%f,%f)", pos2.x,pos2.y,dir2.x,dir2.y);
+		UAirBlueprintLib::LogMessageString("Orient: ", buf, LogDebugLevel::Informational);
+
+		snprintf(buf, 256, "%d (%f)", curNode_, curND_.endDist(pos2,dir2,speed));
+		UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
+
 		if (!vehicle_api_->isApiControlEnabled()) {
 			//all car controls from anywhere must be routed through API component
 			vehicle_api_->setCarControls(current_controls_);
@@ -586,8 +612,14 @@ void CarPawnSimApi::updateCarControls()
     //UAirBlueprintLib::LogMessageString("Target Gear: ", std::to_string(current_controls_.manual_gear), LogDebugLevel::Informational);
 	// ON-SCREEN MONITOR:
 	char buf[256];
-	snprintf(buf, 256, "%f %%", m.plantFailRate());
-	UAirBlueprintLib::LogMessageString("PLANT", buf, LogDebugLevel::Informational);
+	snprintf(buf, 256, "%f %%", 100.0 * m.plantFailRate());
+	UAirBlueprintLib::LogMessageString("PLANT: ", buf, LogDebugLevel::Informational);
+	if (!m.plantOk()) {
+		snprintf(buf, 256, "%f m/s", m.velDeviation());
+		UAirBlueprintLib::LogMessageString("Vel:  ", buf, LogDebugLevel::Informational);
+		snprintf(buf, 256, "%f m", m.pathDeviation());
+		UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
+	}
 
 }
 

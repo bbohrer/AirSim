@@ -36,6 +36,7 @@ public:
 	void afterCtrl();
 	bool plantOk();
 	bool ctrlOk();
+	static double pathDevOf(double k, double eps, double xgpost, double ygpost);
 
 	double pathDeviation();
 	double velDeviation();

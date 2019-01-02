@@ -138,10 +138,11 @@ void Monitor::ctrl(double a, double k, double t, double vl, double vh, double xg
 void Monitor::afterCtrl() {
 	k = kpost; t = tpost; vh = vhpost; vl = vlpost; xg = xgpost; yg = ygpost;
 }
+
 bool Monitor::plantOk() {
-	num lo  = k     *(sq(xgpost) + sq(ygpost)) - 2 * eps   *kf*df;
-	num mid = kpost *(sq(xgpost) + sq(ygpost)) - 2 * xgpost*kf*df;
-	num hi  = k     *(sq(xgpost) + sq(ygpost)) + 2 * eps   *kf*df;
+	num lo  = k     *(sq(xgpost) + sq(ygpost)) - 2 * eps   ;
+	num mid = kpost *(sq(xgpost) + sq(ygpost)) - 2 * xgpost;
+	num hi  = k     *(sq(xgpost) + sq(ygpost)) + 2 * eps   ;
 	bool front    = 0 <= ygpost;
 	bool circ     = lo <= mid && mid <= hi;
 	bool monotone = xgpost*xg <= sq(xg);
@@ -152,6 +153,182 @@ bool Monitor::plantOk() {
 }
 
 bool Monitor::ctrlOk() {
+	num lo  = k     * (sq(xgpost) + sq(ygpost)) - 2 * eps;
+	num mid = kpost * (sq(xgpost) + sq(ygpost)) - 2 * xgpost;
+	num hi  = k     * (sq(xgpost) + sq(ygpost)) + 2 * eps;
+
+	bool t1a = onUpperHalfPlane(xgpost, ygpost) &&
+		onAnnulus(xgpost, ygpost, kpost, eps) &&
+		controllableSpeedGoal(vpost, vlpost, vhpost) &&
+		kpost == 0 &&
+		xgpost == 0;
+	bool t2a = -B <= a && a <= A;
+	bool b31a = vpost <= vhpost && (a <= 0 || a >= 0 && vpost + a * T <= vhpost);
+	bool b32a = a >= 0 &&
+		(1 + 2 * eps*kpost + sq(eps*kpost))
+		*((vpost*T
+			+ a / 2 * sq(T))
+			- ((sq(vpost + a * T) - sq(vhpost)) / (2 * B)))
+		<= (abs(ygpost) - eps);
+	bool b33a = a < 0 &&
+		(1 + 2 * eps*kpost + sq(eps*kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ ((sq(vpost + a * brakeCycleTime(vpost, a)) - sq(vhpost)) / (2 * B)))
+		<= (abs(ygpost) - eps);
+	bool t3a = b31a || b32a || b33a;
+	bool b41a = vlpost <= vpost && (a >= 0 || a <= 0 && vpost + a * T >= vlpost);
+	bool b42a = a >= 0 && (1 + 2 * eps*kpost + sq(eps*kpost))
+		*((vpost*T
+			+ a / 2 * sq(T))
+			+ (((sq(vlpost) - sq(vpost + a * T)))
+				/ (2 * A)))
+		<= abs(ygpost) - eps;
+	bool b43a = a < 0 && (1 + 2 * eps*kpost + sq(eps*kpost))
+		*((vpost*brakeCycleTime(vpost, a)
+			+ a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ ((sq(vlpost) - sq(vpost + a * brakeCycleTime(vpost, a)))
+				/ (2 * A)))
+		<= abs(ygpost) - eps;
+	bool t4a = b41a || b42a || b43a;
+	bool c1 = t1a && t2a && t3a && t4a;
+	bool t1b = onUpperHalfPlane(xgpost, ygpost) && onAnnulus(xgpost, ygpost, kpost, eps) && controllableSpeedGoal(vpost, vlpost, vhpost) && xgpost > 0 && kpost > 0;
+	bool t2b = -B <= a && a <= A;
+	bool b31b = vpost <= vhpost && (a <= 0 || a >= 0 && vpost + a * T <= vhpost);
+	bool b32b = a >= 0 && ((1 + 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*T + a / 2 * sq(T))
+			+ ((sq(vpost + a * T) - sq(vhpost)) / (2 * B)))) <= abs(xgpost) - eps;
+	bool b33b = a >= 0 && (1 + 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*T + a / 2 * sq(T))
+			+ ((sq(vpost + a * T)
+				- sq(vhpost)) / (2 * B))) <= abs(ygpost) - eps;
+	bool b34b = a < 0 && (1 + 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ ((sq(vpost + a * brakeCycleTime(vpost, a))
+				- sq(vhpost)) / (2 * B))) <= abs(xgpost) - eps;
+	bool b35b = a < 0 && (1 + 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ ((sq(vpost + a * brakeCycleTime(vpost, a))
+				- sq(vhpost)) / (2 * B)))
+		<= abs(ygpost) - eps;
+	bool t3b = b31b || b32b || b33b || b34b || b35b;
+	bool b41b = vlpost <= vpost && (a >= 0 || a <= 0 && vpost + a * T >=  vlpost);
+	bool b42b = a >= 0 && ((1 + 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*T + a / 2 * sq(T))
+			+ ((sq(vlpost) - sq(vpost + a * T)) / (2 * A)))) <= abs(xgpost) - eps;
+	bool b43b = a >= 0 && (1 + 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*T + a / 2 * sq(T)) + ((sq(vlpost) - sq((vpost + a * T))) / (2 * A))) <= abs(ygpost) - eps;
+	bool b44b = a < 0 && ((1 + 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ ((sq(vlpost)
+				- sq((vpost*tf + a * brakeCycleTime(vpost, a)))) / (2 * A)))) <= abs(xgpost) - eps;
+	bool b45b = a < 0 && (1 + 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ ((sq(vlpost) - sq((vpost + a * brakeCycleTime(vpost, a)))) / (2 * A))) <= abs(ygpost) - eps;
+	bool t4b = b41b || b42b || b43b || b44b || b45b;
+	bool c2 = t1b && t2b && t3b && t4b;
+	bool t1c = onUpperHalfPlane(xgpost, ygpost) && onAnnulus(xgpost, ygpost, kpost, eps) && controllableSpeedGoal(vpost, vlpost, vhpost) && xgpost < 0 && kpost < 0;
+	bool t2c = -B <= a && a <= A;
+	bool b31c = vpost <= vhpost && (a <= 0 || a >= 0 && vpost + a * T <= vhpost);
+	bool b32c = a >= 0 && (1 - 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*T + a / 2 * sq(T)) + ((sq(vpost + a * T) - sq(vhpost)) / (2 * B))) <= abs(xgpost) - eps;
+	bool b33c = a >= 0 && (1 - 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*T + a / 2 * sq(T)) + ((sq((vpost + a * T)) - sq(vhpost)) / (2 * B))) <= abs(ygpost) - eps;
+	bool b34c = a < 0 && ((1 - 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ ((sq((vpost + a * brakeCycleTime(vpost, a))) - sq(vhpost)) / (2 * B)))) <= abs(xgpost) - eps;
+	bool b35c = a < 0 && (1 - 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ ((sq((vpost + a * brakeCycleTime(vpost, a))) - sq(vhpost)) / (2 * B))) <= abs(ygpost) - eps;
+	bool t3c = b31c || b32c || b33c || b34c || b35c;
+	bool b41c = vlpost <= vpost && (a >= 0 || a <= 0 && vpost + a * T >= vlpost);
+	bool b42c = a >= 0 && ((1 - 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*T + a / 2 * sq(T)) + ((sq(vlpost) - sq((vpost + a * T))) / (2 * A)))) <= abs(xgpost) - eps;
+	bool b43c = a >= 0 && (1 - 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*T + a / 2 * sq(T)) + ((sq(vlpost) - sq((vpost + a * T))) / (2 * A))) <= abs(ygpost) - eps;
+	bool b44c = a < 0 && (1 - 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a)))
+			+ (sq(vlpost) - sq(vpost + a * brakeCycleTime(vpost, a))) / (2 * A)) <= abs(xgpost) - eps;
+	bool b45c = a < 0 && (1 - 2 * eps*kpost + sq(eps)*sq(kpost))
+		*((vpost*brakeCycleTime(vpost, a) + a / 2 * sq(brakeCycleTime(vpost, a))) + ((sq(vlpost) - sq((vpost + a * brakeCycleTime(vpost, a)))) / (2 * A))) <= abs(ygpost) - eps;
+	bool t4c = b41c || b42c || b43c || b44c || b45c;
+	bool c3 = t1c && t2c && t3c && t4c;
+	return c1 || c2 || c3;
+}
+
+double Monitor::pathDevOf(double k, double eps, double xgpost, double ygpost) {
+	num lo = k * (sq(xgpost) + sq(ygpost)) - 2 * eps;
+	num mid = k * (sq(xgpost) + sq(ygpost)) - 2 * xgpost;
+	num hi = k * (sq(xgpost) + sq(ygpost)) + 2 * eps;
+	if (mid < lo) {
+		return mid - lo;
+	}
+	else if (mid > hi) {
+		return mid - hi;
+	}
+	else {
+		return 0.0;
+	}
+}
+double Monitor::pathDeviation() {
+	num lo  = k     * (sq(xgpost) + sq(ygpost)) - 2 * eps;
+	num mid = kpost * (sq(xgpost) + sq(ygpost)) - 2 * xgpost;
+	num hi  = k     * (sq(xgpost) + sq(ygpost)) + 2 * eps;
+	if (mid < lo) {
+		return mid - lo;
+	} else if (mid > hi) {
+		return mid - hi;
+	} else {
+		return 0.0;
+	}
+}
+
+double Monitor::velDeviation() {
+	assert(0 <= vl && vl <= vh);
+	double accDev   = A * T  - (vh - vl);
+	double brakeDev = B * T  - (vh - vl);
+	if ((vl <= v && v <= vh) || accDev <= 0.0 || brakeDev <= 0.0) {
+		return 0.0;
+	} else if (accDev > 0.0) {
+		return -accDev;
+	} else if (brakeDev > 0.0) {
+		return brakeDev;
+	}
+	return std::numeric_limits<double>::signaling_NaN();
+}
+
+bool Monitor::isSaved() {
+	return _outfile != NULL;
+}
+
+void Monitor::saveTo(char const* path) {
+	_outfile = fopen(path, "w");
+	if (!_outfile) _outfile = stdout;
+}
+
+double Monitor::plantFailRate() {
+	return (double)phys_fails / (double)phys_ticks;
+}
+
+double Monitor::ctrlFailRate() {
+	return (double)ctrl_fails / (double)ctrl_ticks;
+}
+
+
+static bool plant_okie() {
+	num lo = k * (sq(xgpost) + sq(ygpost)) - 2 * eps   *kf*df;
+	num mid = kpost * (sq(xgpost) + sq(ygpost)) - 2 * xgpost*kf*df;
+	num hi = k * (sq(xgpost) + sq(ygpost)) + 2 * eps   *kf*df;
+	bool front = 0 <= ygpost;
+	bool circ = lo <= mid && mid <= hi;
+	bool monotone = xgpost * xg <= sq(xg);
+	bool forward = 0 <= vpost;
+	bool timely = tpost <= T;
+	bool pm = front && circ && monotone && forward && timely;
+	return pm;
+}
+
+
+static bool ctrl_okie() {
 	num lo = (k*(sq(xgpost) + sq(ygpost))) - 2 * eps*kf*df;
 	num mid = kpost * (xgpost*xgpost + ygpost * ygpost) - 2 * xgpost*df*kf;
 	num hi = (k*(sq(xgpost) + sq(ygpost))) + 2 * eps*kf*df;
@@ -216,11 +393,11 @@ bool Monitor::ctrlOk() {
 			+ ((sq(vlpost*tf) - sq(vpost*tf + a * T)) / (2 * A)))) <= (abs(xgpost) - eps)*sq(kf)*sq(tf);
 	bool b43b = a >= 0 && (sq(ef*kf) + 2 * eps*kpost*ef*kf + sq(eps)*sq(kpost))
 		*((vpost*T*tf + a / 2 * sq(T)) + ((sq(tf*vlpost) - sq((vpost*tf + a * T))) / (2 * A))) <= (abs(ygpost) - eps)*sq(kf)*sq(tf);
-	bool b44b = a < 0 && ((sq(ef*kf) + 2 * eps*kpost*ef + sq(eps)*sq(kpost))
+	bool b44b = a < 0 && ((sq(ef*kf) + 2 * eps*kpost*ef*kf + sq(eps)*sq(kpost))
 		*((vpost*brakeCycleTime(vpost, a)*tf + a / 2 * sq(brakeCycleTime(vpost, a)))
 			+ ((sq(tf*vlpost)
 				- sq((vpost*tf + a * brakeCycleTime(vpost, a)))) / (2 * A)))) <= (abs(xgpost) - eps)*sq(kf)*sq(tf);
-	bool b45b = a < 0 && (sq(ef*kf) + 2 * eps*kpost*ef + sq(eps)*sq(kpost))
+	bool b45b = a < 0 && (sq(ef*kf) + 2 * eps*kpost*ef*kf + sq(eps)*sq(kpost))
 		*((vpost*brakeCycleTime(vpost, a)*tf + a / 2 * sq(brakeCycleTime(vpost, a)))
 			+ ((sq(tf*vlpost) - sq((vpost*tf + a * brakeCycleTime(vpost, a)))) / (2 * A))) <= (abs(ygpost) - eps)*sq(kf)*sq(tf);
 	bool t4b = b41b || b42b || b43b || b44b || b45b;
@@ -252,29 +429,5 @@ bool Monitor::ctrlOk() {
 	bool t4c = b41c || b42c || b43c || b44c || b45c;
 	bool c3 = t1c && t2c && t3c && t4c;
 	return c1 || c2 || c3;
-}
 
-double Monitor::pathDeviation() {
-	return std::numeric_limits<double>::signaling_NaN();
-}
-
-double Monitor::velDeviation() {
-	return std::numeric_limits<double>::signaling_NaN();
-}
-
-bool Monitor::isSaved() {
-	return _outfile != NULL;
-}
-
-void Monitor::saveTo(char const* path) {
-	_outfile = fopen(path, "w");
-	if (!_outfile) _outfile = stdout;
-}
-
-double Monitor::plantFailRate() {
-	return (double)phys_fails / (double)phys_ticks;
-}
-
-double Monitor::ctrlFailRate() {
-	return (double)ctrl_fails / (double)ctrl_ticks;
 }

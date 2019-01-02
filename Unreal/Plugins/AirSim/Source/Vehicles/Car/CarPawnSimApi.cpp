@@ -6,71 +6,18 @@
 #include "CarPawnSimApi.h"
 #include "AirBlueprintLib.h"
 #include "UnrealSensors/UnrealSensorFactory.h"
+#include "safety/Monitor.hpp"
 #include "CarPawnApi.h"
 #include <exception>
-
+ 
 
 /* BEGIN LOGGING CODE */
 using namespace msr::airlib;
 // The file that the CSV log will be written to. See printConsts()
-FILE* fd = NULL;
+Monitor m;
 
 // Set to one to record outputs in relative coordinate system 
 const int COORDINATES_RELATIVE = 1;
-
-/* Prints the system constants to CSV log.
- * Also opens the log if it hasn't been opened yet.
- * The log gets stored in a hard-coded path below, change it as suitable.
- * If opening the log fails, writes to stdout */
-void printConsts(int T, int eps) {
-	if (!fd) {
-		fd = fopen("C:\\Users\\Brandon\\Documents\\out.csv", "w");
-		if (!fd) fd = stdout;
-	}
-	// Write header
-	fprintf(fd, "t(T),v(eps),xg,yg,a,k,t,vh,vl,xg,yg\n");
-	// Write constants
-	fprintf(fd, "%d,%d\n", T, eps/10);
-	fflush(fd);
-}
-
-/*
- * Functions for unit conversion before printing.
- * Subject to change, but the currently-used units are:
- * Positions: Decimeters
- * Velocity: Decimeters/second
- * Accelerations: Centimeters/second^2
- * Times: milliseconds
- * Curvatures: centi-(meters^-1)
- * 
- * These units are so odd because we want decent precision without
- * ever overflowing a 32-bit integer. This is also why they're abstracted
- * away and easy to change
-*/
-int pos(double d) { return (int)(10.0*d); }
-int vel(double d) { return (int)(10.0*d); }
-int acc(double d) { return (int)(100.0*d); }
-int tim(double d) { return (int)(1000.0*d); }
-int curv(double d) {return (int)(1000.0*d); }
-
-/* Currently-UNUSED units, for posterity:
-* Direction vectors: Magnitude 10.
-*  But if we ever revive this, sqrt(325) and sqrt(65) have better
-*  integrality properties.
-* Distance tolerances: decimeters */
-int dir(double d) { return (int)(10.0*d); }
-int tol(double d) { return (int)(10.0*d); }
-
-/* Print sensor values (to already-opened fd)*/
-void printSensors(int t, int v, int xg, int yg) {
-	fprintf(fd,"%d,%d,%d,%d,", t, v, xg, yg);	
-}
-
-/* Print external controller values (to already-opened fd)*/
-void printCtrl(int a, int k, int t, int vh, int vl, int xg, int yg) {
-	fprintf(fd,"%d,%d,%d,%d,%d,%d,%d\n", a, k, t,vh, vl, xg, yg);	
-	fflush(fd);
-}
 
 /* BEGIN IMPLEMENTATION OF ENVIRONMENTS/LEVELS */
 // Desired radius of turns
@@ -78,16 +25,19 @@ const int RADIUS_CM = 300;
 
 // Construct the "rectangular" level
 void CarPawnSimApi::loadRect() {
-	double rad = ((double)RADIUS_CM) / 100.0;
-	plan_.lineTo(rad, 0.0, 0.0, 0.00, 27.0, 0.5, 2.0);
-	plan_.arcTo(3.0, 3.0, 30.0, 3.0, 27.0, 0.0, 27.0, 0.5, 2.0);
-	plan_.lineTo(rad, 3.0, 30.0, 149.0, 30.0, 0.5, 2.0);
-	plan_.arcTo(3.0, 152.0, 27.0, 149.0, 27.0, 149.0, 30.0, 0.5, 2.0);
-	plan_.lineTo(rad, 152.0, 27.0, 152.0, -149.0, 0.5, 2.0);
-	plan_.arcTo(3.0, 149.0, -152.0, 149.0, -149.0, 152.0, -149.0, 0.5, 2.0);
-	plan_.lineTo(rad, 149.0, -152.0, 3.0, -152.0, 0.5, 2.0);
-	plan_.arcTo(3.0, 0.0, -149.0, 3.0, -149.0, 3.0, -152.0, 0.5, 2.0);
-	plan_.lineTo(rad, 0.0, -149.0, 0.00, 0.0, 0.5, 2.0);
+	double off = 2.0;
+	double rad = off;
+	bool ccw = false;
+	//double rad = ((double)RADIUS_CM) / 100.0;
+	plan_.lineTo(rad, 0.0, 0.0, 0.00, 30.0 - off, 0.5, 2.0);
+	plan_.arcTo(off, off, 30.0, off, 30.0 - off, 0.0, 30.0 - off, 0.5, 2.0,ccw);
+	plan_.lineTo(rad, off, 30.0, 152.0-off, 30.0, 0.5, 2.0);
+	plan_.arcTo(off, 152.0, 30.0-off, 152.0-off, 30.0-off, 152.0-off, 30.0, 0.5, 2.0,ccw);
+	plan_.lineTo(rad, 152.0, 30.0-off, 152.0, -152.0+off, 0.5, 2.0);
+	plan_.arcTo(off, 152.0-off, -152.0, 152.0-off, -152.0+off, 152.0, -152.0+off, 0.5, 2.0,ccw);
+	plan_.lineTo(rad, 152.0-off, -152.0, off, -152.0, 0.5, 2.0);
+	plan_.arcTo(off, 0.0, -152.0+off, off, -152.0+off, off, -152.0, 0.5, 2.0,ccw);
+	plan_.lineTo(rad, 0.0, -152.0+off, 0.00, 0.0, 0.5, 2.0);
 }
 
 // Helper function to scale plan up/down. Useful when you want to tweak 
@@ -197,7 +147,8 @@ void CarPawnSimApi::loadClover() {
 /* BEGIN CONTROL */
 auto ACCEL_MAX = 0.35f; // m/s^2
 auto BRAKE_MAX = 0.15f; // m/s^2
-int A = 35, B = 15; // cm/s^2, derived from test data
+//static int A = 35;
+//static int B = 15; // cm/s^2, derived from test data
 int CIR_TOL = RADIUS_CM; // cm
 
 // UNUSED CONSTANTS
@@ -256,24 +207,25 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	// Log the initial constants
 	int FPS_est = GAverageFPS;
 	int MSPF_est = 1000 / FPS_est;
-	printConsts(MSPF_est, CIR_TOL/10);
+	if (!m.isSaved())
+		m.saveTo("C:\\Users\\Brandon\\Documents\\out.csv");
+	m.consts(MSPF_est, CIR_TOL/10);
 	// Compute and log initial control values
 	auto accel = 0; // Not accelerating yet
 	// Velocity limits *by time we reach waypoint*
 	double vLo = curND_.vlo, vHi = curND_.vhi;
 	// *K*urvature
-	double k = curND_.isArc ? 1.0 / curND_.signedRad() : 0.0;
+	double k = curND_.isArc ? -1.0 / curND_.signedRad() : 0.0;
 	int t = 0; // Time is relative to start of simulation!
 	if (COORDINATES_RELATIVE) {
+		pt2 rel = (curND_.end - pos2);
 		auto orientation = st.kinematics_estimated.pose.orientation;
 		auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
-		pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
-		pt2 rel = (curND_.end - pos2);
-		pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
-		lastDir = dir2;
-		printCtrl(acc(accel), curv(k), t, vel(vHi),vel(vLo), pos(g.x), pos(-g.y));
+		pt2 crdir2 = pt2(-dvec.x(), -dvec.y()).unit();
+		lastDir = crdir2;
+		m.ctrl(accel, k, t, vLo, vHi, rel.x, rel.y);
 	} else {
-		printCtrl(acc(accel),curv(k),t,vel(vHi),vel(vLo), pos(curND_.end.x), pos(curND_.end.y));
+		m.ctrl(accel, k, t, vLo, vHi, curND_.end.x, curND_.end.y);
 	}
 	// Currently, all the levels are circular/loopable!
 	plan_.connect(plan_.last(), 0);
@@ -350,9 +302,11 @@ void CarPawnSimApi::updateCarControls()
 		st.kinematics_estimated.pose.position;
 	auto orientation = st.kinematics_estimated.pose.orientation;
 	auto vvec = orientation._transformVector({ (float)st.speed,0.0f,0.0f });
-	auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+	auto dogvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+	auto logvec = orientation._transformVector({ (float) 0.0, 1.0, 0.0 });
 		//vvec;
-	pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
+	pt2 dir2 = pt2(dogvec.x(), dogvec.y()).unit();
+	pt2 ldir2 = pt2(logvec.x(), logvec.y()).unit();
 	pt2 pos2(pvec.x(), pvec.y());
 	auto speed = st.speed;
 	auto vx = vvec[0], vy = vvec[1], vz = vvec[2];
@@ -446,24 +400,27 @@ void CarPawnSimApi::updateCarControls()
 		double aUp = current_controls_.throttle * ACCEL_MAX;
 		double aDown = current_controls_.brake * -BRAKE_MAX;
 		double a = aUp + aDown;
-		double k = curND_.isArc ? 1.0 / curND_.signedRad() : 0.0;
+		double k = curND_.isArc ? -1.0 / curND_.signedRad() : 0.0;
 		double vLo = curND_.vlo, vHi = curND_.vhi;
 		if (COORDINATES_RELATIVE) {
-			auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+			auto dvec = orientation._transformVector({ (float) 0.0, 1.0, 0.0 });
 			pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
 			pt2 rel = (way - pos2);
-			pt2 gOld = rel.rebase(lastDir);
-			pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
-			/* *K*urvature */
-			printSensors(tim(ep), vel(speed), pos(gOld.x), pos(gOld.y));
-			printCtrl(acc(a), curv(k), 0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
+			pt2 gOld = pt2(0,0)-rel.rebase(lastDir);
+			pt2 g = pt2(0,0)-rel.rebase(dir2); // Translates to vehicle-oriented coordinates
+			m.sense(ep, speed, gOld.x, gOld.y);
+			m.afterSense();
+			m.ctrl(a, k, 0, vLo, vHi, g.x, g.y);
+			m.afterCtrl();
 		}
 		else {
 			pt2 g = way;
-			printSensors(tim(ep), vel(speed), pos(g.x), pos(g.y));
-			printCtrl(acc(a), curv(k), 0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
+			m.sense(ep, speed, g.x, g.y);
+			m.afterSense();
+			m.ctrl(a, k, 0, vLo, vHi, g.x, g.y);
+			m.afterCtrl();
 		}
-		lastDir = dir2;
+		lastDir = ldir2;
 		break;
 	}
     // Autonomous controller that follows the plan!!
@@ -516,7 +473,7 @@ void CarPawnSimApi::updateCarControls()
 			auto sq = sqrt(1 - cos * cos);
 			bool l = wayDiff.isLeftOf(dir2);
 			snprintf(buf, 256, "Cos: %2.2f, Sq: %2.2f, L: %d", cos, sq, l);
-			UAirBlueprintLib::LogMessageString("STEER: ", buf, LogDebugLevel::Informational);
+			//UAirBlueprintLib::LogMessageString("STEER: ", buf, LogDebugLevel::Informational);
 
 			//float* leftsD = st.kinematics_estimated.twist.angular.data();
 			pt2 theRel = pos2 - curND_.start;
@@ -527,7 +484,7 @@ void CarPawnSimApi::updateCarControls()
 				//leftsD[2];
 			//double fact = l;
 			snprintf(buf, 256, "%f", leftD);
-			UAirBlueprintLib::LogMessageString("ANGULATE: ", buf, LogDebugLevel::Informational);
+			//UAirBlueprintLib::LogMessageString("ANGULATE: ", buf, LogDebugLevel::Informational);
 			//goLeft = (leftD >= 0);
 			double P = 2.0;
 			double D = 0.25;
@@ -541,7 +498,7 @@ void CarPawnSimApi::updateCarControls()
 			ai_controls.brake = close ? 1.0f : 0.0f;
 			//On-screen debugging
 			snprintf(buf, 256, "%2.2f*%2.2f=%2.2f,\t%2.2f*%2.2f=%2.2f,\tsum=%2.2f", P,leftP,P*leftP,D,leftD,D*leftD,steer);
-			UAirBlueprintLib::LogMessageString("PD: ", buf, LogDebugLevel::Informational);
+			//UAirBlueprintLib::LogMessageString("PD: ", buf, LogDebugLevel::Informational);
 			break;
 		}
 		case BANGBANG: { // bang-bang control of both steering and braking
@@ -559,34 +516,34 @@ void CarPawnSimApi::updateCarControls()
 		double aUp = ai_controls.throttle * ACCEL_MAX;
 		double aDown = ai_controls.brake * -BRAKE_MAX;
 		double a = aUp + aDown;
-		double k = curND_.isArc ? 1.0 / curND_.signedRad() : 0.0;
+		double k = curND_.isArc ? -1.0 / curND_.signedRad() : 0.0;
 		double vLo = curND_.vlo, vHi = curND_.vhi;
 		if (COORDINATES_RELATIVE) {
-			auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+			auto dvec = orientation._transformVector({ (float) 0.0, 1.0, 0.0 });
 			pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
 			pt2 rel = (way - pos2);
-			pt2 gOld = rel.rebase(lastDir);
-			pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
+			pt2 gOld = pt2(0, 0) - rel.rebase(lastDir);
+			pt2 g = pt2(0,0)-rel.rebase(dir2); // Translates to vehicle-oriented coordinates
 			/* *K*urvature */
-			printSensors(tim(ep), vel(speed), pos(gOld.x), pos(gOld.y));
-			printCtrl(acc(a), curv(k),0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
+			m.sense(ep, speed, gOld.x, gOld.y);
+			m.ctrl(a, k,0, vLo, vHi, g.x, g.y);
 		} else {
 			pt2 g = way;
-			printSensors(tim(ep), vel(speed), pos(g.x), pos(g.y));
-			printCtrl(acc(a), curv(k), 0, vel(vHi), vel(vLo), pos(g.x), pos(g.y));
+			m.sense(ep, speed, g.x, g.y);
+			m.ctrl(a, k, 0, vLo, vHi, g.x, g.y);
 		}
-		lastDir = dir2;
+		lastDir = ldir2;
 		
 		// On-screen log
 		char buf[256];
 		snprintf(buf, 256, "%d: (%f, %f)", vvec[0] >= 0, vxy, xvy);
-		UAirBlueprintLib::LogMessageString("Str: ", buf, LogDebugLevel::Informational);
+		//UAirBlueprintLib::LogMessageString("Str: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "(%f, %f)", pvec[0], pvec[1]);
-		UAirBlueprintLib::LogMessageString("Pos: ", buf, LogDebugLevel::Informational);
+		//UAirBlueprintLib::LogMessageString("Pos: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "(%f, %f)", vvec[0], vvec[1]);
-		UAirBlueprintLib::LogMessageString("Vel: ", buf, LogDebugLevel::Informational);
+//		UAirBlueprintLib::LogMessageString("Vel: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "from %d(%f,%f) to (%f,%f), left:%d", curNode_, curND_.start.x, curND_.start.y, way.x, way.y, goLeft);
-		UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
+	//	UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
 		
 		if (!vehicle_api_->isApiControlEnabled()) {
 			//all car controls from anywhere must be routed through API component
@@ -622,11 +579,16 @@ void CarPawnSimApi::updateCarControls()
 		break;
 	}
 	// More screen logging
-    UAirBlueprintLib::LogMessageString("Accel: ", std::to_string(current_controls_.throttle), LogDebugLevel::Informational);
-    UAirBlueprintLib::LogMessageString("Break: ", std::to_string(current_controls_.brake), LogDebugLevel::Informational);
-    UAirBlueprintLib::LogMessageString("Steering: ", std::to_string(current_controls_.steering), LogDebugLevel::Informational);
-    UAirBlueprintLib::LogMessageString("Handbrake: ", std::to_string(current_controls_.handbrake), LogDebugLevel::Informational);
-    UAirBlueprintLib::LogMessageString("Target Gear: ", std::to_string(current_controls_.manual_gear), LogDebugLevel::Informational);
+    //UAirBlueprintLib::LogMessageString("Accel: ", std::to_string(current_controls_.throttle), LogDebugLevel::Informational);
+    //UAirBlueprintLib::LogMessageString("Break: ", std::to_string(current_controls_.brake), LogDebugLevel::Informational);
+    //UAirBlueprintLib::LogMessageString("Steering: ", std::to_string(current_controls_.steering), LogDebugLevel::Informational);
+    //UAirBlueprintLib::LogMessageString("Handbrake: ", std::to_string(current_controls_.handbrake), LogDebugLevel::Informational);
+    //UAirBlueprintLib::LogMessageString("Target Gear: ", std::to_string(current_controls_.manual_gear), LogDebugLevel::Informational);
+	// ON-SCREEN MONITOR:
+	char buf[256];
+	snprintf(buf, 256, "%f %%", m.plantFailRate());
+	UAirBlueprintLib::LogMessageString("PLANT", buf, LogDebugLevel::Informational);
+
 }
 
 //*** Start: UpdatableState implementation ***//

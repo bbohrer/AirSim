@@ -4,6 +4,8 @@
 #include "UnrealSensors/UnrealSensorFactory.h"
 #include <exception>
 #include <set>
+#include <string>
+
 
 // One recording of all the sensors, in base units (seconds, m/s, meters)
 struct Sense {
@@ -45,7 +47,10 @@ public:
 
 	double plantFailRate();
 	double ctrlFailRate();
-private: 
+	double caseFailRate();
+	size_t age();
+	void ctrlErr(std::string &buf);
+private:
 	Const _consts;
 	// If it don't make dollaz then it don't make
 	std::vector<Sense> _sense;
@@ -57,4 +62,30 @@ private:
 
 	int ctrl_ticks;
 	int ctrl_fails;
+	int case_fails;
+
+	double _A;
+	double _B;
+	double _T;
+	double _eps;
+	double _a;
+	double _k;
+	double _t;
+	double _v;
+	double _vl;
+	double _vh;
+	double _xg;
+	double _yg;
+
+	double _apost;
+	double _kpost;
+	double _tpost;
+	double _vpost;
+	double _vlpost;
+	double _vhpost;
+	double _xgpost;
+	double _ygpost;
+
+	bool controllableSpeedGoal(double v, double vl, double vh);
+	double brakeCycleTime(double v, double a);
 };

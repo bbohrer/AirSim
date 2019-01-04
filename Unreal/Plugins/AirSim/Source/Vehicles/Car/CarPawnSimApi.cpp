@@ -205,11 +205,11 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	plan_.getNode(curNode_, curND_);
 
 	// Log the initial constants
-	int FPS_est = GAverageFPS;
-	int MSPF_est = 1.0 / FPS_est;
+	double FPS_est = GAverageFPS;
+	double MSPF_est = 1.0 / FPS_est;
 	if (!m.isSaved())
 		m.saveTo("C:\\Users\\Brandon\\Documents\\out.csv");
-	m.consts(MSPF_est, CIR_TOL/10);
+	m.consts(MSPF_est, CIR_TOL/100);
 	// Compute and log initial control values
 	auto accel = 0; // Not accelerating yet
 	// Velocity limits *by time we reach waypoint*
@@ -223,7 +223,9 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 		auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
 		pt2 crdir2 = pt2(-dvec.x(), -dvec.y()).unit();
 		lastDir = crdir2;
-		m.ctrl(accel, k, t, vLo, vHi, rel.x, rel.y);
+		double altR = (rel.x*rel.x + rel.y*rel.y) / (2.0*rel.x);
+		double altK = 1.0 / altR;
+		m.ctrl(accel, altK, t, vLo, vHi, rel.x, rel.y);
 	} else {
 		m.ctrl(accel, k, t, vLo, vHi, curND_.end.x, curND_.end.y);
 	}
@@ -430,6 +432,22 @@ void CarPawnSimApi::updateCarControls()
 			m.sense(ep, speed, gOld.x, gOld.y);
 			m.afterSense();
 			m.ctrl(a, k, 0, vLo, vHi, g.x, g.y);
+			snprintf(buf, 256, "%f %%", 100.0 * m.ctrlFailRate());
+			UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%f %%", 100.0 * m.caseFailRate());
+			UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
+			if (!m.ctrlOk()) {
+				std::string msg;
+				m.ctrlErr(msg);
+
+				//snprintf(buf, 256, msg.c_str(), m.velDeviation());
+				UAirBlueprintLib::LogMessageString("CTRLERR: ", msg.c_str(), LogDebugLevel::Informational);
+				//		snprintf(buf, 256, "%f m", m.pathDeviation());
+						//UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
+				//		current_controls_.throttle = 0;
+						//current_controls_.brake =  1;
+
+			}
 			m.afterCtrl();
 		}
 		else {
@@ -529,6 +547,11 @@ void CarPawnSimApi::updateCarControls()
 			break;
 		    }
 		}
+		if (!m.ctrlOk()) {
+			//ai_controls.throttle = 0.0;
+			//ai_controls.brake = 1.0;
+			//ai_controls.handbrake = 1.0;
+		}
 		current_controls_ = ai_controls;
 
 		// Logging code
@@ -546,8 +569,35 @@ void CarPawnSimApi::updateCarControls()
 			pt2 gOld = pt2(0, 0) - rel.rebase(lastDir);
 			pt2 g = pt2(0,0)-rel.rebase(dir2); // Translates to vehicle-oriented coordinates
 			/* *K*urvature */
+			double STOPX = 0.05;
+			double altK;
+			if (fabs(g.x) <= STOPX) {
+				altK = 0;
+				g.x = 0;
+			} else {
+				altK = (2.0*g.x) / (g.x*g.x + g.y*g.y);
+			}
 			m.sense(ep, speed, gOld.x, gOld.y);
-			m.ctrl(a, k,0, vLo, vHi, g.x, g.y);
+
+			m.ctrl(a, altK,0, vLo, vHi, g.x, g.y);
+			char buf[256];
+			snprintf(buf, 256, "%f %%", 100.0 * m.ctrlFailRate());
+			UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%f %%", 100.0 * m.caseFailRate());
+			UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
+			if (!m.ctrlOk()) {
+				std::string msg;
+				m.ctrlErr(msg);
+
+				//snprintf(buf, 256, msg.c_str(), m.velDeviation());
+				UAirBlueprintLib::LogMessageString("CTRLERR: ", msg.c_str(), LogDebugLevel::Informational);
+				//		snprintf(buf, 256, "%f m", m.pathDeviation());
+						//UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
+				//		current_controls_.throttle = 0;
+						//current_controls_.brake =  1;
+
+			}
+			m.afterCtrl();
 		} else {
 			pt2 g = way;
 			m.sense(ep, speed, g.x, g.y);
@@ -604,6 +654,9 @@ void CarPawnSimApi::updateCarControls()
 	default:
 		break;
 	}
+	char buf[256];
+	snprintf(buf, 256, "%d", (int)m.age());
+	UAirBlueprintLib::LogMessageString("TIME: ", buf, LogDebugLevel::Informational);
 	// More screen logging
     //UAirBlueprintLib::LogMessageString("Accel: ", std::to_string(current_controls_.throttle), LogDebugLevel::Informational);
     //UAirBlueprintLib::LogMessageString("Break: ", std::to_string(current_controls_.brake), LogDebugLevel::Informational);
@@ -611,16 +664,16 @@ void CarPawnSimApi::updateCarControls()
     //UAirBlueprintLib::LogMessageString("Handbrake: ", std::to_string(current_controls_.handbrake), LogDebugLevel::Informational);
     //UAirBlueprintLib::LogMessageString("Target Gear: ", std::to_string(current_controls_.manual_gear), LogDebugLevel::Informational);
 	// ON-SCREEN MONITOR:
-	char buf[256];
-	snprintf(buf, 256, "%f %%", 100.0 * m.plantFailRate());
-	UAirBlueprintLib::LogMessageString("PLANT: ", buf, LogDebugLevel::Informational);
+//	snprintf(buf, 256, "%f %%", 100.0 * m.plantFailRate());
+	//UAirBlueprintLib::LogMessageString("PLANT: ", buf, LogDebugLevel::Informational);
 	if (!m.plantOk()) {
 		snprintf(buf, 256, "%f m/s", m.velDeviation());
-		UAirBlueprintLib::LogMessageString("Vel:  ", buf, LogDebugLevel::Informational);
+	//	UAirBlueprintLib::LogMessageString("Vel:  ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "%f m", m.pathDeviation());
-		UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
+		//UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
 	}
 
+	
 }
 
 //*** Start: UpdatableState implementation ***//

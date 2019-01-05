@@ -176,7 +176,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	// Which low-level feedback controller?
 	fb_ = PD;
 	// Which level/environment?
-	level_ = LGRIDS;
+	level_ = LRECT;
 	// What node are we currently following in the plan? None!
 	curNode_ = -1;
 	curND_ = {};
@@ -312,7 +312,7 @@ bool CarPawnSimApi::atEnd(pt2 p, pt2 d, double v) {
 	double devMargin, distMargin;
 	switch (level_) {
 	case LRECT:
-		devMargin = 0.5; distMargin = 0.1;
+		devMargin = 0.5; distMargin = 0.5;
 		break;
 	case LGRIDS:
 	case LCLOVER:

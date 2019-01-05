@@ -28,16 +28,18 @@ void CarPawnSimApi::loadRect() {
 	double off = 12.0;
 	double rad = off;
 	bool ccw = true;
+	double vlo = 0.0;
+	double vhi = 6.0;
 	//double rad = ((double)RADIUS_CM) / 100.0;
-	plan_.lineTo(rad, 0.0, 0.0, 0.00, 30.0 - off, 0.5, 2.0);
-	plan_.arcTo(off, off, 30.0, off, 30.0 - off, 0.0, 30.0 - off, 0.5, 2.0,ccw);
-	plan_.lineTo(rad, off, 30.0, 152.0-off, 30.0, 0.5, 2.0);
-	plan_.arcTo(off, 152.0, 30.0-off, 152.0-off, 30.0-off, 152.0-off, 30.0, 0.5, 2.0,ccw);
-	plan_.lineTo(rad, 152.0, 30.0-off, 152.0, -152.0+off, 0.5, 2.0);
-	plan_.arcTo(off, 152.0-off, -152.0, 152.0-off, -152.0+off, 152.0, -152.0+off, 0.5, 2.0,ccw);
-	plan_.lineTo(rad, 152.0-off, -152.0, off, -152.0, 0.5, 2.0);
-	plan_.arcTo(off, 0.0, -152.0+off, off, -152.0+off, off, -152.0, 0.5, 2.0,ccw);
-	plan_.lineTo(rad, 0.0, -152.0+off, 0.00, 0.0, 0.5, 2.0);
+	plan_.lineTo(rad, 0.0, 0.0, 0.00, 30.0 - off, vlo, vhi);
+	plan_.arcTo(off, off, 30.0, off, 30.0 - off, 0.0, 30.0 - off, vlo, vhi,ccw);
+	plan_.lineTo(rad, off, 30.0, 152.0-off, 30.0, vlo, vhi);
+	plan_.arcTo(off, 152.0, 30.0-off, 152.0-off, 30.0-off, 152.0-off, 30.0, vlo, vhi,ccw);
+	plan_.lineTo(rad, 152.0, 30.0-off, 152.0, -152.0+off, vlo, vhi);
+	plan_.arcTo(off, 152.0-off, -152.0, 152.0-off, -152.0+off, 152.0, -152.0+off, vlo, vhi,ccw);
+	plan_.lineTo(rad, 152.0-off, -152.0, off, -152.0, vlo, vhi);
+	plan_.arcTo(off, 0.0, -152.0+off, off, -152.0+off, off, -152.0, vlo, vhi,ccw);
+	plan_.lineTo(rad, 0.0, -152.0+off, 0.00, 0.0, vlo, vhi);
 }
 
 // Helper function to scale plan up/down. Useful when you want to tweak 
@@ -334,7 +336,9 @@ void CarPawnSimApi::updateCarControls()
 	
 	// time delta
 	double newTime = FPlatformTime::Seconds();
-	double ep = (newTime - lastTime_);
+	// TODO:
+	//double ep = (newTime - lastTime_);
+	double ep = 0.10;
 	lastTime_ = newTime;
 	
 	switch (mode_) {
@@ -444,8 +448,8 @@ void CarPawnSimApi::updateCarControls()
 				UAirBlueprintLib::LogMessageString("CTRLERR: ", msg.c_str(), LogDebugLevel::Informational);
 				//		snprintf(buf, 256, "%f m", m.pathDeviation());
 						//UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
-				//		current_controls_.throttle = 0;
-						//current_controls_.brake =  1;
+				current_controls_.throttle = 0;
+				current_controls_.brake =  1;
 
 			}
 			m.afterCtrl();
@@ -484,11 +488,19 @@ void CarPawnSimApi::updateCarControls()
 		// Velocity after one timestep acceleration, RELATIVE to target vel
 		auto vv = (st.speed + ACCEL_MAX * ep) - curND_.targetVelocity();
 		// Distance after one timestep
-		auto dd = dist - (ep * st.speed + ep * ep * 0.5f * ACCEL_MAX);
+		auto dd = fmax(0.0, dist - ((CIR_TOL / 100.0) + ep * st.speed + ep * ep * 0.5f * ACCEL_MAX));
 		// Do we need to start braking?
 		// TODO: Braking is currently bang-bang, would be great to add PD
 		double HARD_LIMIT = 28.0;
-		bool close = ((vv * vv >= dd / (2.0f * BRAKE_MAX))) || st.speed > HARD_LIMIT;
+		bool close;
+		// Heuristic: Since the monitoring conditions are more conservative
+		// on curves than straightaways, immediately observe the speed limit
+		// on turns, but observe it late-as-safely-possible on straight
+		if (curND_.isArc) {
+			close = vv >= 0 && st.speed + ACCEL_MAX * ep <= curND_.vhi;
+		} else {
+			close = vv >= 0 && (((vv * vv >= dd / (2.0f * BRAKE_MAX))) || st.speed > HARD_LIMIT);
+		}
 		// For bang-bang steering
 		bool goLeft = wayDiff.isLeftOf(dir2);
 
@@ -547,11 +559,7 @@ void CarPawnSimApi::updateCarControls()
 			break;
 		    }
 		}
-		if (!m.ctrlOk()) {
-			//ai_controls.throttle = 0.0;
-			//ai_controls.brake = 1.0;
-			//ai_controls.handbrake = 1.0;
-		}
+		
 		current_controls_ = ai_controls;
 
 		// Logging code
@@ -593,8 +601,8 @@ void CarPawnSimApi::updateCarControls()
 				UAirBlueprintLib::LogMessageString("CTRLERR: ", msg.c_str(), LogDebugLevel::Informational);
 				//		snprintf(buf, 256, "%f m", m.pathDeviation());
 						//UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
-				//		current_controls_.throttle = 0;
-						//current_controls_.brake =  1;
+				current_controls_.throttle = 0;
+				current_controls_.brake =  1;
 
 			}
 			m.afterCtrl();

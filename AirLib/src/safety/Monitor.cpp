@@ -98,6 +98,9 @@ void Monitor::sense(double t, double v, double xg, double yg) {
 	_sense.push_back(rec);
 	fprintf(_outfile, "%d,%d,%d,%d,", tim(t), vel(v), pos(xg), pos(yg));
 	_tpost = t; _vpost = v; _xgpost = xg; _ygpost = yg;
+	if (_vpost < 0.0) {
+		_vpost = 0.0;
+	}
 	phys_ticks++;
 	if (!plantOk()) phys_fails++;
 }
@@ -238,7 +241,8 @@ void Monitor::ctrlErr(std::string &buf) {
 	num mid = _kpost * (sq(_xgpost) + sq(_ygpost)) - 2 * _xgpost;
 	num hi = _k      * (sq(_xgpost) + sq(_ygpost)) + 2 * _eps;
 
-	double kf = (1 + 2 * _eps*_kpost + sq(_eps*_kpost));
+	double kp = (1 + 2 * _eps*_kpost + sq(_eps*_kpost));
+	double km = (1 - 2 * _eps*_kpost + sq(_eps*_kpost));
 	double ay = abs(_ygpost) - _eps, ax = abs(_xgpost) - _eps;
 	double delta = 0.001;
 	bool core = onUpperHalfPlane(_xgpost, _ygpost) &&
@@ -253,16 +257,25 @@ void Monitor::ctrlErr(std::string &buf) {
 		bool simp = _vpost <= _vhpost && (_a <= delta || _a >= 0 && _vpost + _a * _T <= _vhpost);
 		bool cmplx;
 		if (_a >= 0) {
-			cmplx = (1 + 2 * _eps*_kpost + sq(_eps*_kpost))
-				*((_vpost*_T
-					+ _a / 2 * sq(_T))
-					- ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B)))
-				<= abs(_ygpost) - _eps;
+			double d0 = _vpost * _T;
+			double dA = _a / 2 * sq(_T);
+			double v1 = _vpost + _a * _T;
+			double v2 = _vhpost;
+			double dB = (sq(v1) - sq(v2)) / (2 * _B);
+			cmplx = kp*(d0+dA+dB) <= ay;
+			if (!(simp || cmplx)) {
+				buf = "Failed branch 3\n"; return;
+			}
 		} else {
-			cmplx = (1 + 2 * _eps*_kpost + sq(_eps*_kpost))
-				*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-					+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a)) - sq(_vhpost)) / (2 * _B)))
-				<= abs(_ygpost) - _eps;
+			double d0 = _vpost * brakeCycleTime(_vpost, _a);
+			double dA = _a / 2 * sq(brakeCycleTime(_vpost, _a));
+			double v1 = _vpost + _a * brakeCycleTime(_vpost, _a);
+			double v2 = _vhpost;
+			double dB = (sq(v1) - sq(v2)) / (2 * _B);
+			cmplx = kp*(d0+dA+dB)<= ay;
+			if (!(simp || cmplx)) {
+				buf = "Failed branch 3\n"; return;
+			}
 		}	
 		if (!(simp || cmplx)) {
 			buf = "Failed branch 3\n"; return;
@@ -284,14 +297,14 @@ void Monitor::ctrlErr(std::string &buf) {
 		bool simp = _vpost <= _vhpost && (_a <= 0 || _a >= 0 && _vpost + _a * _T <= _vhpost);
 		bool xcmplx, ycmplx;
 		if (_a >= 0) {
-			xcmplx = ((1 + 2*_eps*_kpost + sq(_eps)*sq(_kpost))
+			xcmplx = (kp
 				*((_vpost*_T + _a / 2 * sq(_T))+ ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B)))) <= abs(_xgpost) - _eps;
-			ycmplx = (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			ycmplx = kp
 				*((_vpost*_T + _a / 2 * sq(_T))
 					+ ((sq(_vpost + _a * _T)- sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
 		}
 		else {
-			xcmplx = (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			xcmplx = kp
 				*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
 					+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a))
 						- sq(_vhpost)) / (2 * _B))) <= abs(_xgpost) - _eps;
@@ -306,19 +319,19 @@ void Monitor::ctrlErr(std::string &buf) {
 		}
 		simp = _vlpost <= _vpost && (_a >= 0 || _a <= 0 && _vpost + _a * _T >= _vlpost);
 		if (_a >= 0) {
-			xcmplx = ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			xcmplx = (kp
 				*((_vpost*_T + _a / 2 * sq(_T))
 					+ ((sq(_vlpost) - sq(_vpost + _a * _T)) / (2 * _A)))) <= abs(_xgpost) - _eps;
-			ycmplx = (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			ycmplx = kp
 				*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A))) <= abs(_ygpost) - _eps;
 			if (!(xcmplx || ycmplx || simp)) {
 				buf = "B branch 4 fail\n"; return;
 			}
 		} else {
-			xcmplx = ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			xcmplx = (kp
 				*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
 					+ ((sq(_vlpost) - sq((_vpost + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A)))) <= abs(_xgpost) - _eps;
-			ycmplx = (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			ycmplx = kp
 				*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
 					+ ((sq(_vlpost) - sq((_vpost + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A))) <= abs(_ygpost) - _eps;
 			if (!(xcmplx || ycmplx || simp)) {
@@ -330,34 +343,38 @@ void Monitor::ctrlErr(std::string &buf) {
 		bool simp = _vpost <= _vhpost && (_a <= 0 || _a >= 0 && _vpost + _a * _T <= _vhpost);
 		bool xcmplx, ycmplx;
 		if (_a >= 0) {
-			xcmplx = (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-				*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B))) <= abs(_xgpost) - _eps;
-			ycmplx = (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-				*((_vpost*_T + _a / 2 * sq(_T)) + ((sq((_vpost + _a * _T)) - sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
+			double d0 = (_vpost*_T + _a / 2 * sq(_T));
+			double v1 = _vpost + _a * _T, v2 = _vhpost;
+			double dB = (sq(v1) - sq(v2)) / (2 * _B);
+			xcmplx = km*(d0 + dB) <= ax;
+			ycmplx = km*(d0 + dB) <= ay;
+			if (!(xcmplx || ycmplx || simp)) {
+				buf = "C branch 3 fail\n"; return;
+			}
 		} else {
-			xcmplx = ((1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-				*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-					+ ((sq((_vpost + _a * brakeCycleTime(_vpost, _a))) - sq(_vhpost)) / (2*_B)))) <= abs(_xgpost) - _eps;
-			ycmplx = (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-				*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-					+ ((sq((_vpost + _a * brakeCycleTime(_vpost, _a))) - sq(_vhpost)) / (2*_B))) <= abs(_ygpost) - _eps;
-		}
-		if (!(xcmplx || ycmplx || simp)) {
-			buf = "C branch 3 fail\n"; return;
+			double d0 = _vpost * brakeCycleTime(_vpost, _a);
+			double dA = _a / 2 * sq(brakeCycleTime(_vpost, _a));
+			double v1 = _vpost + _a * brakeCycleTime(_vpost, _a), v2 = _vhpost;
+			double dB = (sq(v1) - sq(v2)) / (2 * _B);
+			xcmplx = kp*(d0 + dA + dB) <= ax;
+			ycmplx = kp*(d0 + dA + dB) <= ay;
+			if (!(xcmplx || ycmplx || simp)) {
+				buf = "C branch 3 fail\n"; return;
+			}
 		}
 
 		simp = _vlpost <= _vpost && (_a >= 0 || _a <= 0 && _vpost + _a * _T >= _vlpost);
 		if (_a >= 0) {
-			xcmplx = ((1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			xcmplx = (km
 				*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A)))) <= abs(_xgpost) - _eps;
-			ycmplx = (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			ycmplx = km
 				*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A))) <= abs(_ygpost) - _eps;
 		}
 		else {
-			xcmplx = (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			xcmplx = km
 				*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
 					+ (sq(_vlpost) - sq(_vpost + _a * brakeCycleTime(_vpost,_a))) / (2 *_A)) <= abs(_xgpost) - _eps;
-			ycmplx = (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+			ycmplx = km
 				*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a))) + ((sq(_vlpost) - sq((_vpost + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A))) <= abs(_ygpost) - _eps;
 		} 
 		if (!(xcmplx || ycmplx || simp)) {

@@ -68,33 +68,34 @@ void CarPawnSimApi::aTo(double r, double cornX, double cornY, double fromX, doub
 // tighter, more complex than the Rectangle level
 void CarPawnSimApi::loadGrids() {
 	double rad = 0.5;//((double)RADIUS_CM) / 100.0;
-	double margin = 0.2; // Turning area
+	double margin = 16.0; // Turning area
 	bool b = true;
-	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, 2.0, 3.0);
-	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, 2.0, 3.0,b);
-	gridTo(rad, margin, 115.0,     300.0-margin, 115.0, 2.0, 3.0);
-	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin, 2.0, 3.0,b);
-	gridTo(rad, 300.0, 115.0-margin,   300.0, margin, 2.0, 3.0);
-	aTo(rad, 300.0, 0, 0, margin, -margin, 0, 2.0, 3.0,b);
-	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0, 2.0, 3.0);
-	aTo(rad, 200, 0, margin, 0, 0, margin, 2.0,3.0,b);
-	gridTo(rad, 200.0, margin,     200.0, 115.0-margin,1.0,2.0);
-	aTo(rad, 200, 115, 0, -margin, -margin, 0,1.0,2.0,!b);
-	gridTo(rad, 200.0-margin, 115.0,   100.0+margin, 115.0,1.0,2.0);
-	aTo(rad, 100, 115, margin, 0, 0, -margin,2.0,3.0,!b);
-	gridTo(rad, 100.0, 115.0-margin,   100.0, 0.0+margin,1.0,2.0);
-	aTo(rad, 100, 0, 0, margin, margin, 0,1.0,2.0,!b);
-	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0,1.0,2.0);
-	aTo(rad, 200, 0, -margin, 0, 0, -margin,1.0,2.0,b);
-	gridTo(rad, 200.0, -margin, 200.0, -200.0 + margin,1.0,2.0);
-	aTo(rad, 200.0, -200.0, 0.0, margin, -margin, 0.0,1.0,2.0,b);
-	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0,1.0,2.0);
-	aTo(rad, -100, -200, margin, 0, 0, margin,1.0,2.0,b);
-	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin,2.0,3.0);
-	aTo(rad, -100, -100, 0, -margin, margin, 0,2.0,3.0,b);
-	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0,2.0,3.0);
-	aTo(rad, 0, -100, -margin, 0, 0, margin,2.0,3.0,!b);
-	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0,2.0,3.0);
+	double vlo = 0.0;
+	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, vlo, 3.0);
+	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, vlo, 3.0,b);
+	gridTo(rad, margin, 115.0,     300.0-margin, 115.0, vlo, 3.0);
+	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin, vlo, 3.0,b);
+	gridTo(rad, 300.0, 115.0-margin,   300.0, margin, vlo, 3.0);
+	aTo(rad, 300.0, 0, 0, margin, -margin, 0, vlo, 3.0,b);
+	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0, vlo, 3.0);
+	aTo(rad, 200, 0, margin, 0, 0, margin, vlo,3.0,b);
+	gridTo(rad, 200.0, margin,     200.0, 115.0-margin,vlo,2.0);
+	aTo(rad, 200, 115, 0, -margin, -margin, 0,vlo,2.0,!b);
+	gridTo(rad, 200.0-margin, 115.0,   100.0+margin, 115.0,vlo,2.0);
+	aTo(rad, 100, 115, margin, 0, 0, -margin,vlo,3.0,!b);
+	gridTo(rad, 100.0, 115.0-margin,   100.0, 0.0+margin,vlo,2.0);
+	aTo(rad, 100, 0, 0, margin, margin, 0,vlo,2.0,!b);
+	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0,vlo,2.0);
+	aTo(rad, 200, 0, -margin, 0, 0, -margin,vlo,2.0,b);
+	gridTo(rad, 200.0, -margin, 200.0, -200.0 + margin,vlo,2.0);
+	aTo(rad, 200.0, -200.0, 0.0, margin, -margin, 0.0,vlo,2.0,b);
+	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0,vlo,2.0);
+	aTo(rad, -100, -200, margin, 0, 0, margin,vlo,2.0,b);
+	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin,vlo,3.0);
+	aTo(rad, -100, -100, 0, -margin, margin, 0,vlo,3.0,b);
+	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0,vlo,3.0);
+	aTo(rad, 0, -100, -margin, 0, 0, margin,vlo,3.0,!b);
+	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0,vlo,3.0);
 }
 
 void CarPawnSimApi::parcTo(double rad, pt2 to, pt2 c, pt2 from, bool cW) {
@@ -175,7 +176,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	// Which low-level feedback controller?
 	fb_ = PD;
 	// Which level/environment?
-	level_ = LRECT;
+	level_ = LGRIDS;
 	// What node are we currently following in the plan? None!
 	curNode_ = -1;
 	curND_ = {};
@@ -296,6 +297,7 @@ void CarPawnSimApi::updateRendering(float dt)
     }
 }
 
+
 bool CarPawnSimApi::atEnd(pt2 p, pt2 d, double v) {
 	auto succs = plan_.getSuccs(curNode_);
 	auto next = succs[0];
@@ -304,9 +306,20 @@ bool CarPawnSimApi::atEnd(pt2 p, pt2 d, double v) {
 	double k = 1.0 / nextNode.signedRad();
 	double eps = 1.0;
 	pt2 rel = nextNode.end - p;
-    pt2 g = pt2(0, 0) - rel.rebase(d); // Translates to vehicle-oriented coordinates
+    pt2 g = pt2(0, 0) - rel.rebase(d); // Translates to vehicle-oriented coordinates 
+
 	double dev = m.pathDevOf(k, eps, g.x, g.y);
-	bool altRet = dev < 0.5 && curND_.endDist(p, d, v) < 0.1;
+	double devMargin, distMargin;
+	switch (level_) {
+	case LRECT:
+		devMargin = 0.5; distMargin = 0.1;
+		break;
+	case LGRIDS:
+	case LCLOVER:
+		devMargin = 10.0; distMargin = 1.5;
+		break;
+	}
+	bool altRet = dev < devMargin && curND_.endDist(p, d, v) < distMargin;
 	bool ret = curND_.endDist(p, d, v) < 0;
 	if (altRet) {
 		return true;
@@ -436,10 +449,13 @@ void CarPawnSimApi::updateCarControls()
 			m.sense(ep, speed, gOld.x, gOld.y);
 			m.afterSense();
 			m.ctrl(a, k, 0, vLo, vHi, g.x, g.y);
-			snprintf(buf, 256, "%f %%", 100.0 * m.ctrlFailRate());
-			UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
-			snprintf(buf, 256, "%f %%", 100.0 * m.caseFailRate());
-			UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
+			//snprintf(buf, 256, "%f %%", 100.0 * m.ctrlFailRate());
+			//UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
+			//snprintf(buf, 256, "%f %%", 100.0 * m.caseFailRate());
+			//UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%f %f", m.pathDevOf(k, 1.0, g.x, g.y), curND_.endDist(pos2, dir2, speed));
+			UAirBlueprintLib::LogMessageString("END: ", buf, LogDebugLevel::Informational);
+
 			if (!m.ctrlOk()) {
 				std::string msg;
 				m.ctrlErr(msg);
@@ -549,7 +565,7 @@ void CarPawnSimApi::updateCarControls()
 			ai_controls.brake = close ? 1.0f : 0.0f;
 			//On-screen debugging
 			snprintf(buf, 256, "%2.2f*%2.2f=%2.2f,\t%2.2f*%2.2f=%2.2f,\tsum=%2.2f", P,leftP,P*leftP,D,leftD,D*leftD,steer);
-			//UAirBlueprintLib::LogMessageString("PD: ", buf, LogDebugLevel::Informational);
+			UAirBlueprintLib::LogMessageString("PD: ", buf, LogDebugLevel::Informational);
 			break;
 		}
 		case BANGBANG: { // bang-bang control of both steering and braking
@@ -593,6 +609,9 @@ void CarPawnSimApi::updateCarControls()
 			UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%f %%", 100.0 * m.caseFailRate());
 			UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%f %f", m.pathDevOf(k, 1.0, g.x, g.y), curND_.endDist(pos2, dir2, speed));
+			UAirBlueprintLib::LogMessageString("END: ", buf, LogDebugLevel::Informational);
+
 			if (!m.ctrlOk()) {
 				std::string msg;
 				m.ctrlErr(msg);

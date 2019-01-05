@@ -58,7 +58,7 @@ int dir(double d) { return (int)(10.0*d); }
 int tol(double d) { return (int)(10.0*d); }
 
 num sq(num x) { return x * x; }
-num circle(num x, num y, num k) { return (k*(sq(x) + sq(y)) - 2 * x*kf*df); }
+num circle(num x, num y, num k) { return (k*(sq(x) + sq(y)) - 2 * x); }
 // should be in deciseconds
 num Monitor::brakeCycleTime(num v, num a) {
 	return -(_T < ((tf*v) / -a)) ? (_T) : ((tf*v) / -a);
@@ -67,8 +67,8 @@ bool onUpperHalfPlane(num xg, num yg) {
 	return yg >= 0;
 }
 bool onAnnulus(num x, num y, num k, num eps) {
-	return sq(df)*(k*sq(eps) - 2 * kf*eps) <= circle(x, y, k)
-		&& circle(x, y, k) <= sq(df)*(k*sq(eps) + 2 * kf*eps);
+	return (k*sq(eps) - 2 * eps) <= circle(x, y, k)
+		&& circle(x, y, k) <= (k*sq(eps) + 2 * eps);
 }
 
 bool Monitor::controllableSpeedGoal(num v, num vl, num vh) {
@@ -245,10 +245,11 @@ void Monitor::ctrlErr(std::string &buf) {
 	double km = (1 - 2 * _eps*_kpost + sq(_eps*_kpost));
 	double ay = abs(_ygpost) - _eps, ax = abs(_xgpost) - _eps;
 	double delta = 0.001;
-	bool core = onUpperHalfPlane(_xgpost, _ygpost) &&
-		onAnnulus(_xgpost, _ygpost, _kpost, _eps) &&
-		controllableSpeedGoal(_vpost, _vlpost, _vhpost) &&
-		-_B <= _a && _a <= _A;
+	bool c1 = onUpperHalfPlane(_xgpost, _ygpost);
+	bool c2 = onAnnulus(_xgpost, _ygpost, _kpost, _eps);
+	bool c3 = controllableSpeedGoal(_vpost, _vlpost, _vhpost);
+	bool c4 = -_B <= _a && _a <= _A;
+	bool core = c1 && c2 && c3 && c4;
 	if (!core) {
 		buf = "Core failed\n"; return;
 	}

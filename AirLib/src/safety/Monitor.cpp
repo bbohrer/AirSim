@@ -4,8 +4,11 @@
 #include <exception>
 #include <set>
 #include <string>
+#include <windows.h>
 
 typedef double num;
+
+const bool USE_NAMED_PIPE = true;
 
 // time factor
 const num tf = 10.0;
@@ -17,6 +20,21 @@ const num df = 10.0;
 const num ef = 1.0;
 // convert velocity to acceleration
 const num vaf = 1.0;
+
+
+Monitor::Monitor() {
+	b1 = b2 = b3 = b4 = 0;
+	
+	LPTSTR lpszPipename = TEXT("\\\\.\\pipe\\VeriPhy");
+	DWORD dwMode = PIPE_READMODE_MESSAGE;
+	if(USE_NAMED_PIPE)
+		_pipe = CreateFile(lpszPipename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+	if (INVALID_HANDLE_VALUE == _pipe) {
+		DWORD x = GetLastError();
+		DWORD y = GetLastError();
+	}
+	SetNamedPipeHandleState(_pipe, &dwMode, NULL, NULL);
+}
 
 // unused
 //int cirTol;
@@ -45,9 +63,9 @@ const num vaf = 1.0;
 */
 int pos(double d) { return (int)(10.0*d); }
 int vel(double d) { return (int)(10.0*d); }
-int acc(double d) { return (int)(100.0*d); }
-int tim(double d) { return (int)(1000.0*d); }
-int curv(double d) { return (int)(1000.0*d); }
+int acc(double d) { return (int)(10.0*d); }
+int tim(double d) { return (int)(10.0*d); }
+int curv(double d) { return (int)(100.0*d); }
 
 /* Currently-UNUSED units, for posterity:
 * Direction vectors: Magnitude 10.
@@ -90,6 +108,11 @@ void Monitor::consts(double aT, double aeps) {
 	_B = 1.50;
 	_T = aT;
 	_eps = aeps;
+	if (USE_NAMED_PIPE) {
+		int32_t words[] = { acc(_A),acc(_B),tim(_T),_eps};
+		DWORD writ;
+		WriteFile(_pipe, (char*)&words, sizeof(words), &writ, NULL);
+	}
 }
 
 void Monitor::sense(double t, double v, double xg, double yg) {
@@ -100,6 +123,11 @@ void Monitor::sense(double t, double v, double xg, double yg) {
 	_tpost = t; _vpost = v; _xgpost = xg; _ygpost = yg;
 	if (_vpost < 0.0) {
 		_vpost = 0.0;
+	}
+	if (USE_NAMED_PIPE) {
+		int32_t words[] = { tim(t),vel(v), pos(xg), pos(yg) };
+		DWORD writ;
+		WriteFile(_pipe, (char*)&words, sizeof(words), &writ, NULL);
 	}
 	phys_ticks++;
 	if (!plantOk()) phys_fails++;
@@ -112,11 +140,43 @@ void Monitor::afterSense() {
 void Monitor::ctrl(double a, double k, double t, double vl, double vh, double xg, double yg) {
 	assert(_outfile);
 	Ctrl rec = { a,k,t,vl,vh,{xg,yg} };
-	_ctrl.push_back(rec);	
+	_ctrl.push_back(rec);
+	char req[1]; DWORD nRead; bool ret;
+	if (USE_NAMED_PIPE) {
+		ret = ReadFile(_pipe, req, sizeof(req), &nRead, NULL);
+		_extPlantMon = req[0];
+	}
 	fprintf(_outfile, "%d,%d,%d,%d,%d,%d,%d\n", acc(a), curv(k), tim(t), vel(vh), vel(vl), pos(xg), pos(yg));
+	if (USE_NAMED_PIPE) {
+		if (_extPlantMon) {
+			int32_t words[] = { acc(_A),acc(_B),tim(_T),_eps };
+			DWORD writ;
+			WriteFile(_pipe, (char*)&words, sizeof(words), &writ, NULL);
+			int32_t words2[] = { acc(a),curv(k),tim(t),vel(vh),vel(vl),pos(xg),pos(yg) };
+			WriteFile(_pipe, (char*)&words2, sizeof(words2), &writ, NULL);
+			//ctrl_ticks = 0; // skip synch message after ctrl monitor
+		}
+		else {
+			int32_t words[] = { acc(a),curv(k),tim(t),vel(vh),vel(vl),pos(xg),pos(yg) };
+			DWORD writ;
+			WriteFile(_pipe, (char*)&words, sizeof(words), &writ, NULL);
+		}
+	}
 	_apost = a; _kpost = k; _tpost = t; _vlpost = vl; _vhpost = vh; _xgpost = xg; _ygpost = yg;
 	ctrl_ticks++;
-	if (!ctrlOk()) ctrl_fails++;
+	if (ctrl_ticks > 1) {
+		bool dblCtrl = !ctrlOk();
+		if (USE_NAMED_PIPE) {
+			ret = ReadFile(_pipe, req, sizeof(req), &nRead, NULL);
+			_extCtrlMon = req[0];
+		}
+		if (dblCtrl || (USE_NAMED_PIPE && _extCtrlMon)) {
+			ctrl_fails++;
+		}
+		if (USE_NAMED_PIPE && (dblCtrl != _extCtrlMon)) {
+			int i = !!dblCtrl;
+		}
+	}
 	bool b1 = _kpost == 0 && _xgpost == 0;
 	bool b2 = _xgpost > 0 && _kpost > 0;
 	bool b3 = _xgpost < 0 && _kpost < 0;
@@ -132,6 +192,8 @@ void Monitor::afterCtrl() {
 	_k = _kpost; _t = _tpost; _vh = _vhpost; _vl = _vlpost; _xg = _xgpost; _yg = _ygpost;
 }
 
+const bool SIMP = true;
+
 bool Monitor::ctrlOk(){
 	num lo = _k * (sq(_xgpost) + sq(_ygpost)) - 2 * _eps;
 	num mid = _kpost * (sq(_xgpost) + sq(_ygpost)) - 2 * _xgpost;
@@ -143,7 +205,15 @@ bool Monitor::ctrlOk(){
 		_kpost == 0 &&
 		_xgpost == 0;
 	bool t2a = -_B <= _a && _a <= _A;
-	bool b31a = _vpost <= _vhpost && (_a <= 0 || _a >= 0 && _vpost + _a * _T <= _vhpost);
+	bool b31a = _vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost));
+	if (b31a) {
+		if (_a <= 0) {
+			b1++;
+		}
+		else if (_a >= 0 && _vpost + _a * _T <= _vhpost){
+			b2++;
+		}
+	}
 	bool b32a = _a >= 0 &&
 		(1 + 2 * _eps*_kpost + sq(_eps*_kpost))
 		*((_vpost*_T
@@ -156,7 +226,15 @@ bool Monitor::ctrlOk(){
 			+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a)) - sq(_vhpost)) / (2 * _B)))
 		<= (abs(_ygpost) - _eps);
 	bool t3a = b31a || b32a || b33a;
-	bool b41a = _vlpost <= _vpost && (_a >= 0 || _a <= 0 && _vpost + _a * _T >= _vlpost);
+	bool b41a =  _vlpost <= _vpost && (_a >= 0 ||((!SIMP) && _a <= 0 && _vpost + _a * _T >= _vlpost));
+	if (b41a) {
+		if (_a >= 0 ) {
+			b3++;
+		}
+		else if (_a <= 0 && _vpost + _a * _T >= _vlpost){
+			b4++;
+		}
+	}
 	bool b42a = _a >= 0 && (1 + 2 * _eps*_kpost + sq(_eps*_kpost))
 		*((_vpost*_T
 			+ _a / 2 * sq(_T))
@@ -174,7 +252,15 @@ bool Monitor::ctrlOk(){
 
 	bool t1b = onUpperHalfPlane(_xgpost, _ygpost) && onAnnulus(_xgpost, _ygpost, _kpost, _eps) && controllableSpeedGoal(_vpost, _vlpost, _vhpost) && _xgpost > 0 && _kpost > 0;
 	bool t2b = -_B <= _a && _a <= _A;
-	bool b31b = _vpost <= _vhpost && (_a <= 0 || _a >= 0 && _vpost + _a * _T <= _vhpost);
+	bool b31b = (_vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost)));
+	if (b31b) {
+		if (_a <= 0) {
+			b1++;
+		}
+		else if (_a >= 0 && _vpost + _a * _T <= _vhpost){
+			b2++;
+		}
+	}
 	bool b32b = _a >= 0 && ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
 		*((_vpost*_T + _a / 2 * sq(_T))
 			+ ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B)))) <= abs(_xgpost) - _eps;
@@ -192,7 +278,15 @@ bool Monitor::ctrlOk(){
 				- sq(_vhpost)) / (2 * _B)))
 		<= abs(_ygpost) - _eps;
 	bool t3b = b31b || b32b || b33b || b34b || b35b;
-	bool b41b = _vlpost <= _vpost && (_a >= 0 || _a <= 0 && _vpost + _a * _T >= _vlpost);
+	bool b41b =  _vlpost <= _vpost && (_a >= 0 || ((!SIMP) && _a <= 0 && _vpost + _a * _T >= _vlpost)); 
+	if (b41b) {
+		if (_a >= 0) {
+			b3++;
+		}
+		else if (_a <= 0 && _vpost + _a * _T >= _vlpost){
+			b4++;
+		}
+	}
 	bool b42b = _a >= 0 && ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
 		*((_vpost*_T + _a / 2 * sq(_T))
 			+ ((sq(_vlpost) - sq(_vpost + _a * _T)) / (2 * _A)))) <= abs(_xgpost) - _eps;
@@ -209,7 +303,16 @@ bool Monitor::ctrlOk(){
 	bool c2 = t1b && t2b && t3b && t4b;
 	bool t1c = onUpperHalfPlane(_xgpost, _ygpost) && onAnnulus(_xgpost, _ygpost, _kpost, _eps) && controllableSpeedGoal(_vpost, _vlpost, _vhpost) && _xgpost < 0 && _kpost < 0;
 	bool t2c = -_B <= _a && _a <= _A;
-	bool b31c = _vpost <= _vhpost && (_a <= 0 || _a >= 0 && _vpost + _a * _T <= _vhpost);
+	bool b31c =  _vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost));
+	if (b31c) {
+		if (_a <= 0) {
+			b1++;
+		}
+		else if (_a >= 0 && _vpost + _a * _T <= _vhpost) {
+			b2++;
+		}
+	}
+
 	bool b32c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
 		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B))) <= abs(_xgpost) - _eps;
 	bool b33c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
@@ -221,7 +324,15 @@ bool Monitor::ctrlOk(){
 		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
 			+ ((sq((_vpost + _a * brakeCycleTime(_vpost, _a))) - sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
 	bool t3c = b31c || b32c || b33c || b34c || b35c;
-	bool b41c = _vlpost <= _vpost && (_a >= 0 || _a <= 0 && _vpost + _a * _T >= _vlpost);
+	bool b41c =  _vlpost <= _vpost && (_a >= 0 || (!(SIMP) &&_a <= 0 && _vpost + _a * _T >= _vlpost));
+	if (b41c) {
+		if (_a >= 0) {
+			b3++;
+		}
+		else if (_a <= 0 && _vpost + _a * _T >= _vlpost) {
+			b4++;
+		}
+	}
 	bool b42c = _a >= 0 && ((1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
 		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A)))) <= abs(_xgpost) - _eps;
 	bool b43c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))

@@ -5,7 +5,7 @@
 #include <exception>
 #include <set>
 #include <string>
-
+#include <windows.h>
 
 // One recording of all the sensors, in base units (seconds, m/s, meters)
 struct Sense {
@@ -31,6 +31,7 @@ struct Const {
 
 class Monitor {
 public:
+	Monitor();
 	void consts(double T, double eps);
 	void sense(double t, double v, double xg, double yg);
 	void ctrl(double a, double k, double t, double vl, double vh, double xg, double yg);
@@ -50,6 +51,12 @@ public:
 	double caseFailRate();
 	size_t age();
 	void ctrlErr(std::string &buf);
+	bool _extCtrlMon;
+	bool _extPlantMon;
+	int b1;
+	int b2;
+	int b3;
+	int b4;
 private:
 	Const _consts;
 	// If it don't make dollaz then it don't make
@@ -63,7 +70,6 @@ private:
 	int ctrl_ticks;
 	int ctrl_fails;
 	int case_fails;
-
 	double _A;
 	double _B;
 	double _T;
@@ -85,6 +91,8 @@ private:
 	double _vhpost;
 	double _xgpost;
 	double _ygpost;
+	HANDLE _pipe;
+
 
 	bool controllableSpeedGoal(double v, double vl, double vh);
 	double brakeCycleTime(double v, double a);

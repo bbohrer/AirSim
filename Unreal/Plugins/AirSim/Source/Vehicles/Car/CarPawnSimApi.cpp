@@ -26,10 +26,10 @@ const int RADIUS_CM = 300;
 // Construct the "rectangular" level
 void CarPawnSimApi::loadRect() {
 	double off = 12.0;
-	double rad = off;
+	double rad = 3.5;
 	bool ccw = true;
 	double vlo = 0.0;
-	double vhi = 6.0;
+	double vhi = 17.0;
 	//double rad = ((double)RADIUS_CM) / 100.0;
 	plan_.lineTo(rad, 0.0, 0.0, 0.00, 30.0 - off, vlo, vhi);
 	plan_.arcTo(off, off, 30.0, off, 30.0 - off, 0.0, 30.0 - off, vlo, vhi,ccw);
@@ -148,8 +148,8 @@ void CarPawnSimApi::loadClover() {
 }
 
 /* BEGIN CONTROL */
-auto ACCEL_MAX = 0.35f; // m/s^2
-auto BRAKE_MAX = 0.15f; // m/s^2
+auto ACCEL_MAX = 3.5f; // m/s^2
+auto BRAKE_MAX = 1.5f; // m/s^2
 //static int A = 35;
 //static int B = 15; // cm/s^2, derived from test data
 int CIR_TOL = RADIUS_CM; // cm
@@ -177,7 +177,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	fb_ = PD;
 	// Which level/environment?
 	level_ = LRECT;
-	// What node are we currently following in the plan? None!
+	// What node are we currebntly following in the plan? None!
 	curNode_ = -1;
 	curND_ = {};
 	
@@ -455,6 +455,8 @@ void CarPawnSimApi::updateCarControls()
 			//UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%f %f", m.pathDevOf(k, 1.0, g.x, g.y), curND_.endDist(pos2, dir2, speed));
 			UAirBlueprintLib::LogMessageString("END: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%d\t%d\t%d\t%d", m.b1, m.b2, m.b3, m.b4);
+			UAirBlueprintLib::LogMessageString("MONS: ", buf, LogDebugLevel::Informational);
 
 			if (!m.ctrlOk()) {
 				std::string msg;
@@ -611,8 +613,10 @@ void CarPawnSimApi::updateCarControls()
 			UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%f %f", m.pathDevOf(k, 1.0, g.x, g.y), curND_.endDist(pos2, dir2, speed));
 			UAirBlueprintLib::LogMessageString("END: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%d\t%d\t%d\t%d", m.b1, m.b2, m.b3, m.b4);
+			UAirBlueprintLib::LogMessageString("MONS: ", buf, LogDebugLevel::Informational);
 
-			if (!m.ctrlOk()) {
+			if (m._extCtrlMon || !m.ctrlOk()) {
 				std::string msg;
 				m.ctrlErr(msg);
 

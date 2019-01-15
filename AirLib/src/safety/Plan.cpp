@@ -28,7 +28,6 @@
 
 using namespace msr::airlib;
 
-
 // constructor
 Plan::Plan(int nC,
 	vector<NodeDatum> nD,
@@ -70,8 +69,7 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		return ret;
 	}
 
-	// Update graph data structures for added node
-	int Plan::addNode(vector<int> preds, NodeDatum nd) {
+	int Plan::doNode(vector<int> preds, NodeDatum nd) {
 		int thisNode = m_nodeCount++;
 		for (auto it = preds.begin(); it != preds.end(); it++) {
 			int i = *it;
@@ -80,6 +78,28 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 		m_nodeData.push_back(nd);
 		m_adj.push_back(vector<int>());
 		return thisNode;
+	}
+
+	// Update graph data structures for added node
+	int Plan::addNode(vector<int> preds, NodeDatum nd) {
+		std::vector<NodeDatum> nds = { nd };
+		for (auto it = nds.begin(); it != nds.end();) {
+			if (it->length() >= it->splitSize()) {
+				NodeDatum prev = *it;
+				NodeDatum fst = prev.first();
+				NodeDatum snd = prev.second();
+				it = nds.insert(it, fst);
+				(*(it+1)) = snd;
+			} else {
+				it++;
+			}	
+		}
+		int j;
+		for (int i = 0; i < nds.size(); i++) {
+			j = doNode(preds, nds[i]);
+			preds = { j };
+		}
+		return j;
 	}
 	
 	// Meaning that we will never run out of places to go regardless of

@@ -1,4 +1,5 @@
 #pragma once
+
 #include "AirBlueprintLib.h"
 #include "common/Geom.hpp"
 #include "UnrealSensors/UnrealSensorFactory.h"
@@ -21,6 +22,68 @@ struct NodeDatum {
 	double vhi; // upper velocity limit *at endpoint* in m/s
 	bool isCcw;
 
+	NodeDatum& operator=(const NodeDatum & nd) {
+		start = nd.start; end = nd.end; center = nd.center; isArc = nd.isArc;
+		rad = nd.rad; vlo = nd.vlo, vhi = nd.vhi; isCcw = nd.isCcw;
+		return *this;
+	}
+	double splitSize() {
+		if (isArc) {
+			return 50.0;
+		} else {
+			return 20.0;
+		}
+	}
+	const double SLOW_LIM = 20;
+
+	double length() {
+		if (isArc) {
+			pt2 relS = start - center;
+			pt2 relE = end - center;
+			double thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
+			double diff = (thE - thS)*(isCcw ? -1.0 : 1.0);
+			while (diff < 0.0) diff += (2.0 * M_PI);
+			return diff * rad;
+		}
+		else {
+			return (end - start).mag();
+		}
+	}
+
+	NodeDatum first() {
+		double vmid = (vlo + vhi) * 0.5;
+		bool slo = length() <= SLOW_LIM;
+		pt2 pmid = (start + end) * 0.5;
+		if (isArc) {
+			pt2 relS = start - center;
+			pt2 relE = end - center;
+			double thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
+			double thM = (thS + thE) * 0.5;
+			double m = relS.mag();
+			pt2 pmid = pt2( cos(thM)*m, sin(thM)*m ) + center;
+			return { start, pmid, center, isArc, rad, vlo, slo ? vmid : vhi, isCcw };
+		} else {
+			return { start, pmid, center, isArc, rad, vlo, slo ? vmid : vhi, isCcw };
+		}
+	}
+
+	NodeDatum second() {
+		pt2 pmid = (start + end) * 0.5;
+		if (isArc) {
+			pt2 relS = start - center;
+			pt2 relE = end - center;
+			double thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
+			double thM = (thS + thE) * 0.5;
+			double m = relS.mag();
+			pt2 pmid = pt2(cos(thM)*m, sin(thM)*m) + center;
+			return { pmid, end, center, isArc, rad, vlo, vhi, isCcw };
+		}
+		else {
+			return { pmid, end, center, isArc, rad, vlo, vhi, isCcw };
+		}
+	}
+
+	
 	// Feedback controller should aim for middle of speed limits
 	double targetVelocity() { return (vlo + vhi) * 0.5; }
 
@@ -53,7 +116,6 @@ struct NodeDatum {
 		double dist = g.x - v * T;
 		return dist;
 	}
-
 	
 	bool isLeftOf(pt2 p) {
 		if (isArc) {
@@ -202,5 +264,6 @@ private:
 	vector<vector<int>> m_adj;
 	Mob m_vehicle;
 	
+	int doNode(vector<int> preds, NodeDatum nd);
 	bool nodeContains(int i, Mob m);
 };

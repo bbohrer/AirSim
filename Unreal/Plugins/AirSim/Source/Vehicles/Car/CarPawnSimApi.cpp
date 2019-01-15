@@ -72,8 +72,8 @@ void CarPawnSimApi::loadGrids() {
 	double margin = 16.0; // Turning area
 	bool b = true;
 	double vlo = 0.0;
-	double vmid = 6.0;
-	double vhi = 12.0;
+	double vmid = 11.0;
+	double vhi = 18.0;
 	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, vlo, vhi); //up
 	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, vlo, vhi,b); 
 	gridTo(rad, margin, 115.0,     300.0-margin, 115.0, vlo, vhi); //left
@@ -558,8 +558,16 @@ void CarPawnSimApi::updateCarControls()
 			snprintf(buf, 256, "%f", leftD);
 			//UAirBlueprintLib::LogMessageString("ANGULATE: ", buf, LogDebugLevel::Informational);
 			//goLeft = (leftD >= 0);
-			double P = 2.0;
-			double D = 0.25;
+			double P, D;
+			switch (level_) {
+			case LGRIDS: 
+				P = 6.0; D = 0.75; 
+				break;
+			case LCLOVER: break;
+			case LRECT: 
+			default:
+				P = 2.0; D = 0.25;
+			}
 			double steer = P * leftP + D * leftD;
 			if (steer >= 1 || steer <= -1) {
 				int x = 1 + 1;

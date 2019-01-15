@@ -104,7 +104,8 @@ pt2 pt2::operator-(pt2 const R) const { return { x - R.x, y - R.y }; }
 
 	pt2 pt2::rebase(pt2 other) {
 		//double mmag = this->mag();
-		double th = atan2(other.y, other.x);
+		double th = atan2(other.y, other.x) - 0.5*M_PI;
+		//double th = 0.5*M_PI - atan2(other.y, other.x);
 		////pt2 ounit = other.unit();
 		////pt2 xaxis = ounit.rot(0.5*M_PI);
 		////pt2 ref = pt2(proj(ounit).mag(), proj(xaxis).mag());

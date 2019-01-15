@@ -181,7 +181,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	// Which low-level feedback controller?
 	fb_ = PD;
 	// Which level/environment?
-	level_ = LRECT;
+	level_ = LGRIDS;
 	// What node are we currebntly following in the plan? None!
 	curNode_ = -1;
 	curND_ = {};
@@ -314,23 +314,25 @@ bool CarPawnSimApi::atEnd(pt2 p, pt2 d, double v) {
 	double k = 1.0 / nextNode.signedRad();
 	double eps = 1.0;
 	pt2 rel = nextNode.end - p;
-    pt2 g = pt2(0, 0) - rel.rebase(d); // Translates to vehicle-oriented coordinates 
+    pt2 g   = rel.rebase(d); // Translates to vehicle-oriented coordinates 
 
 	double dev = m.pathDevOf(k, eps, g.x, g.y);
 	double devMargin, distMargin;
 	switch (level_) {
 	case LRECT:
-		devMargin = 0.5; distMargin = 0.5;
+		devMargin = 25.0; distMargin = 0.5;
 		break;
 	case LGRIDS:
-		devMargin = 10.0; distMargin = 1.5;
+		devMargin = 32.0; distMargin = 1.5;
 		break;
 	case LCLOVER:
-		devMargin = 80.0; distMargin = 2.0;
+		//devmargin = 80
+		//devmargin 45.0
+		devMargin = 20.0; distMargin = 2.0;
 		break;
 	}
 	double theDist = curND_.endDist(p, d, v);
-	bool altRet = dev < devMargin && theDist < distMargin;
+	bool altRet = abs(dev) < devMargin && theDist < distMargin;
 	bool ret = curND_.endDist(p, d, v) < 0;
 	if (altRet) {
 		return true;
@@ -617,11 +619,11 @@ void CarPawnSimApi::updateCarControls()
 		double k = curND_.isArc ? -1.0 / curND_.signedRad() : 0.0;
 		double vLo = curND_.vlo, vHi = curND_.vhi;
 		if (COORDINATES_RELATIVE) {
-			auto dvec = orientation._transformVector({ (float) 0.0, 1.0, 0.0 });
-			pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
-			pt2 rel = (way - pos2);
-			pt2 gOld = pt2(0, 0) - rel.rebase(lastDir);
-			pt2 g = pt2(0,0)-rel.rebase(dir2); // Translates to vehicle-oriented coordinates
+			auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+			pt2 dir2  = pt2(dvec.x(), dvec.y()).unit();
+			pt2 rel   = (way - pos2);
+			pt2 gOld  = rel.rebase(lastDir);
+			pt2 g     = rel.rebase(dir2); // Translates to vehicle-oriented coordinates
 			/* *K*urvature */
 			double STOPX = 0.05;
 			double altK;

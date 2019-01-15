@@ -61,6 +61,11 @@ struct NodeDatum {
 			pt2 relS = start - center;
 			pt2 relE = end - center;
 			double thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
+			if (isCcw) {
+				while (thE >= thS) thS += 2.0 * M_PI;
+			} else {
+				while (thE <= thS) thE += 2.0 * M_PI;
+			}
 			double thM = (thS + thE) * 0.5;
 			double m = relS.mag();
 			pt2 pmid = pt2( cos(thM)*m, sin(thM)*m ) + center;
@@ -76,6 +81,12 @@ struct NodeDatum {
 			pt2 relS = start - center;
 			pt2 relE = end - center;
 			double thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
+			if (isCcw) {
+				while (thE >= thS) thS += 2.0 * M_PI;
+			}
+			else {
+				while (thE <= thS) thE += 2.0 * M_PI;
+			}
 			double thM = (thS + thE) * 0.5;
 			double m = relS.mag();
 			pt2 pmid = pt2(cos(thM)*m, sin(thM)*m) + center;
@@ -115,8 +126,8 @@ struct NodeDatum {
 		*/
 		pt2 rel = (end - p);
 		pt2 base = rel.rebase(d);
-		pt2 g = pt2(0, 0) - base; // Translates to vehicle-oriented coordinates
-		double dist = g.x - v * T;
+		//pt2 g = pt2(0, 0) - base; // Translates to vehicle-oriented coordinates
+		double dist = base.y - v * T;
 		return dist;
 	}
 	

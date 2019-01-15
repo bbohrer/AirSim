@@ -67,35 +67,38 @@ void CarPawnSimApi::aTo(double r, double cornX, double cornY, double fromX, doub
 // Construct the "grids" level, which is all right-angle turns, but longer,
 // tighter, more complex than the Rectangle level
 void CarPawnSimApi::loadGrids() {
-	double rad = 0.5;//((double)RADIUS_CM) / 100.0;
+	double rad = 1.5;//((double)RADIUS_CM) / 100.0;
+	double bigrad = 2.5;
 	double margin = 16.0; // Turning area
 	bool b = true;
 	double vlo = 0.0;
-	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, vlo, 3.0);
-	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, vlo, 3.0,b);
-	gridTo(rad, margin, 115.0,     300.0-margin, 115.0, vlo, 3.0);
-	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin, vlo, 3.0,b);
-	gridTo(rad, 300.0, 115.0-margin,   300.0, margin, vlo, 3.0);
-	aTo(rad, 300.0, 0, 0, margin, -margin, 0, vlo, 3.0,b);
-	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0, vlo, 3.0);
-	aTo(rad, 200, 0, margin, 0, 0, margin, vlo,3.0,b);
-	gridTo(rad, 200.0, margin,     200.0, 115.0-margin,vlo,2.0);
-	aTo(rad, 200, 115, 0, -margin, -margin, 0,vlo,2.0,!b);
-	gridTo(rad, 200.0-margin, 115.0,   100.0+margin, 115.0,vlo,2.0);
-	aTo(rad, 100, 115, margin, 0, 0, -margin,vlo,3.0,!b);
-	gridTo(rad, 100.0, 115.0-margin,   100.0, 0.0+margin,vlo,2.0);
-	aTo(rad, 100, 0, 0, margin, margin, 0,vlo,2.0,!b);
-	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0,vlo,2.0);
-	aTo(rad, 200, 0, -margin, 0, 0, -margin,vlo,2.0,b);
-	gridTo(rad, 200.0, -margin, 200.0, -200.0 + margin,vlo,2.0);
-	aTo(rad, 200.0, -200.0, 0.0, margin, -margin, 0.0,vlo,2.0,b);
-	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0,vlo,2.0);
-	aTo(rad, -100, -200, margin, 0, 0, margin,vlo,2.0,b);
-	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin,vlo,3.0);
-	aTo(rad, -100, -100, 0, -margin, margin, 0,vlo,3.0,b);
-	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0,vlo,3.0);
-	aTo(rad, 0, -100, -margin, 0, 0, margin,vlo,3.0,!b);
-	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0,vlo,3.0);
+	double vmid = 6.0;
+	double vhi = 12.0;
+	gridTo(rad, 0.0, 0.0, 0.0, 115.0 - margin, vlo, vhi); //up
+	aTo(rad, 0.0, 115.0, 0, -margin, margin, 0, vlo, vhi,b); 
+	gridTo(rad, margin, 115.0,     300.0-margin, 115.0, vlo, vhi); //left
+	aTo(rad, 300.0, 115.0, -margin, 0, 0, -margin, vlo, vhi,b);
+	gridTo(rad, 300.0, 115.0-margin,   300.0, margin, vlo, vhi); //down
+	aTo(rad, 300.0, 0, 0, margin, -margin, 0, vlo, vhi,b);
+	gridTo(rad, 300.0-margin, 0.0,  200.0+margin, 0.0, vlo, vhi); //right
+	aTo(rad, 200, 0, margin, 0, 0, margin, vlo,vhi,b);
+	gridTo(rad, 200.0, margin,     200.0, 115.0-margin,vlo, vmid); // top
+	aTo(bigrad, 200, 115, 0, -margin, -margin, 0,vlo, vmid,!b);
+	gridTo(rad, 200.0-margin, 115.0,   100.0+margin, 115.0,vlo, vmid); // right
+	aTo(rad, 100, 115, margin, 0, 0, -margin,vlo,vhi,!b);
+	gridTo(rad, 100.0, 115.0-margin,   100.0, 0.0+margin,vlo, vmid); // down
+	aTo(rad, 100, 0, 0, margin, margin, 0,vlo, vmid,!b);
+	gridTo(rad, 100.0, margin, 200.0 - margin, 0.0,vlo, vmid); // left
+	aTo(bigrad, 200, 0, -margin, 0, 0, -margin,vlo, vmid,b);
+	gridTo(bigrad, 200.0, -margin, 200.0, -200.0 + margin,vlo, vhi);  //bigdown
+	aTo(bigrad, 200.0, -200.0, 0.0, margin, -margin, 0.0,vlo, vmid,b);
+	gridTo(rad, 200.0-margin, -200.0,  -100.0+margin, -200.0,vlo, vmid);
+	aTo(rad, -100, -200, margin, 0, 0, margin,vlo, vmid,b);
+	gridTo(rad, -100.0, -200.0+margin, -100.0, -100.0-margin,vlo,vhi);
+	aTo(rad, -100, -100, 0, -margin, margin, 0,vlo,vhi,b);
+	gridTo(rad, -100.0+margin, -100.0, -margin, -100.0,vlo,vhi);
+	aTo(rad, 0, -100, -margin, 0, 0, margin,vlo,vhi,!b);
+	gridTo(rad, 0.0, -100.0+margin, 0.0, 0.0,vlo,vhi);
 }
 
 void CarPawnSimApi::parcTo(double rad, pt2 to, pt2 c, pt2 from, bool cW) {
@@ -176,7 +179,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	// Which low-level feedback controller?
 	fb_ = PD;
 	// Which level/environment?
-	level_ = LRECT;
+	level_ = LGRIDS;
 	// What node are we currebntly following in the plan? None!
 	curNode_ = -1;
 	curND_ = {};

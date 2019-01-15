@@ -29,7 +29,7 @@ struct NodeDatum {
 	}
 	double splitSize() {
 		if (isArc) {
-			return 50.0;
+			return 40.0;
 		} else {
 			return 20.0;
 		}
@@ -37,13 +37,16 @@ struct NodeDatum {
 	const double SLOW_LIM = 20;
 
 	double length() {
+		double EPS = 1E-5;
 		if (isArc) {
-			pt2 relS = start - center;
+			return (end - start).mag();
+			/*pt2 relS = start - center;
 			pt2 relE = end - center;
+			double r = relS.mag();
 			double thS = atan2(relS.y, relS.x), thE = atan2(relE.y, relE.x);
-			double diff = (thE - thS)*(isCcw ? -1.0 : 1.0);
-			while (diff < 0.0) diff += (2.0 * M_PI);
-			return diff * rad;
+			double diff = (thE - thS)*((isCcw) ? -1.0 : 1.0);
+			while (diff < -EPS) diff += (2.0 * M_PI);
+			return diff * r;*/
 		}
 		else {
 			return (end - start).mag();

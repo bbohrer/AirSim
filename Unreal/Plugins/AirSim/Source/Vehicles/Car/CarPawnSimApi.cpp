@@ -104,11 +104,13 @@ void CarPawnSimApi::loadGrids() {
 void CarPawnSimApi::parcTo(double rad, pt2 to, pt2 c, pt2 from, bool cW) {
 	double OFFX = -200.0;
 	double OFFY = -100.0;
-	plan_.arcTo(rad, to.x+OFFX, to.y+OFFY, c.x+OFFX, c.y+OFFY, from.x+OFFX, from.y+OFFY, 3.0, 10.0, cW);
+	double vlo = 3.0;
+	double vhi = 22.0;
+	plan_.arcTo(rad, to.x+OFFX, to.y+OFFY, c.x+OFFX, c.y+OFFY, from.x+OFFX, from.y+OFFY, vlo, vhi, cW);
 }
 // Construct the "4-leaf Clover" level, which is all arcs
 void CarPawnSimApi::loadClover() {
-	double rad = 8.0;//((double)RADIUS_CM) / 100.0;
+	double rad = 18.0;//((double)RADIUS_CM) / 100.0;
 	//double margin = 3.0; // Turning area
 	pt2  ptl = { -200,200 }, pt = { 0,200 }, ptr = { 200,200 },
 		pl = { -200,0 }, pr = { 200,0 },
@@ -179,7 +181,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	// Which low-level feedback controller?
 	fb_ = PD;
 	// Which level/environment?
-	level_ = LGRIDS;
+	level_ = LRECT;
 	// What node are we currebntly following in the plan? None!
 	curNode_ = -1;
 	curND_ = {};
@@ -231,6 +233,9 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 		lastDir = crdir2;
 		double altR = (rel.x*rel.x + rel.y*rel.y) / (2.0*rel.x);
 		double altK = 1.0 / altR;
+		if (rel.y <= 0.05) {
+			int x = 2;
+		}
 		m.ctrl(accel, altK, t, vLo, vHi, rel.x, rel.y);
 	} else {
 		m.ctrl(accel, k, t, vLo, vHi, curND_.end.x, curND_.end.y);
@@ -318,11 +323,14 @@ bool CarPawnSimApi::atEnd(pt2 p, pt2 d, double v) {
 		devMargin = 0.5; distMargin = 0.5;
 		break;
 	case LGRIDS:
-	case LCLOVER:
 		devMargin = 10.0; distMargin = 1.5;
 		break;
+	case LCLOVER:
+		devMargin = 80.0; distMargin = 2.0;
+		break;
 	}
-	bool altRet = dev < devMargin && curND_.endDist(p, d, v) < distMargin;
+	double theDist = curND_.endDist(p, d, v);
+	bool altRet = dev < devMargin && theDist < distMargin;
 	bool ret = curND_.endDist(p, d, v) < 0;
 	if (altRet) {
 		return true;
@@ -450,7 +458,14 @@ void CarPawnSimApi::updateCarControls()
 			pt2 gOld = pt2(0,0)-rel.rebase(lastDir);
 			pt2 g = pt2(0,0)-rel.rebase(dir2); // Translates to vehicle-oriented coordinates
 			m.sense(ep, speed, gOld.x, gOld.y);
+			if (gOld.y <= 0.05) {
+				int x = 2;
+			}
+
 			m.afterSense();
+			if (g.y <= 0.05) {
+				int x = 2;
+			}
 			m.ctrl(a, k, 0, vLo, vHi, g.x, g.y);
 			//snprintf(buf, 256, "%f %%", 100.0 * m.ctrlFailRate());
 			//UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
@@ -563,7 +578,9 @@ void CarPawnSimApi::updateCarControls()
 			case LGRIDS: 
 				P = 6.0; D = 0.75; 
 				break;
-			case LCLOVER: break;
+			case LCLOVER: 
+				P = 6.0; D = 0.75;
+				break;
 			case LRECT: 
 			default:
 				P = 2.0; D = 0.25;

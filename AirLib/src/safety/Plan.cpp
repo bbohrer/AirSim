@@ -84,7 +84,8 @@ Plan::Plan() : m_nodeCount(0), m_nodeData(), m_adj(), m_vehicle() {}
 	int Plan::addNode(vector<int> preds, NodeDatum nd) {
 		std::vector<NodeDatum> nds = { nd };
 		for (auto it = nds.begin(); it != nds.end();) {
-			if (it->length() >= it->splitSize()) {
+			double huh = it->length();
+			if (huh >= it->splitSize()) {
 				NodeDatum prev = *it;
 				NodeDatum fst = prev.first();
 				NodeDatum snd = prev.second();

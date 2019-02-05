@@ -64,12 +64,14 @@ private:
 	std::vector<Ctrl>  _ctrl;
 	FILE*              _outfile;
 
+public:
 	int phys_ticks;
 	int phys_fails;
 
 	int ctrl_ticks;
 	int ctrl_fails;
 	int case_fails;
+private:
 	double _A;
 	double _B;
 	double _T;
@@ -96,4 +98,11 @@ private:
 
 	bool controllableSpeedGoal(double v, double vl, double vh);
 	double brakeCycleTime(double v, double a);
+
+public:
+	bool _velStarted;
+	bool _finished;
+	int _cycles;
+	double _velAvg;
+	void ctrlFallback(double a);
 };

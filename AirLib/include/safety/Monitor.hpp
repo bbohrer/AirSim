@@ -105,5 +105,4 @@ public:
 	int _cycles;
 	double _velAvg;
 	void ctrlFallback(double a);
-	double boundaryDist();
 };

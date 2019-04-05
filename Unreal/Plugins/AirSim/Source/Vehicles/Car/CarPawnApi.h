@@ -29,12 +29,11 @@ public:
 
     virtual ~CarPawnApi();
 
-	ACarPawn* getPawn() { return pawn_; }
 private:
     UWheeledVehicleMovementComponent* movement_;
     bool api_control_enabled_ = false;
     CarControls last_controls_;
+    ACarPawn* pawn_;
     const msr::airlib::Kinematics::State* pawn_kinematics_;
     msr::airlib::GeoPoint  home_geopoint_;
-	ACarPawn* pawn_;
 };

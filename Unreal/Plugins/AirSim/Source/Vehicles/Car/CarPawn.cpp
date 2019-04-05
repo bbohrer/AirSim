@@ -16,8 +16,20 @@
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
+double lerp(double lo, double hi, double t) { return lo + (hi - lo)*t; }
+FLinearColor lerpColor(FLinearColor lo, FLinearColor hi, double t) {
+	return FLinearColor(lerp(lo.R, hi.R, t), lerp(lo.G, hi.G, t), lerp(lo.B, hi.B, t), lerp(lo.A, hi.A, t));
+}
+
+
 ACarPawn::ACarPawn()
 {
+	auto path = TEXT("Material'/AirSim/VehicleAdv/SUV/AutomotiveMaterials/Materials/CarPaint/M_Carpaint.M_Carpaint'");
+	//ConstructorHelpers::FObjectFinder<USoundCue> SoundCue(TEXT("/AirSim/VehicleAdv/Sound/Engine_Loop_Cue.Engine_Loop_Cue")); 
+	base_material_ = ConstructorHelpers::FObjectFinder<UMaterial>(path).Object;
+	safe_mats_[0] = unsafe_mats_[0] = NULL;
+	
+	
     static ConstructorHelpers::FClassFinder<APIPCamera> pip_camera_class(TEXT("Blueprint'/AirSim/Blueprints/BP_PIPCamera'"));
     pip_camera_class_ = pip_camera_class.Succeeded() ? pip_camera_class.Class : nullptr;
 
@@ -240,6 +252,7 @@ void ACarPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
     camera_back_center_base_ = nullptr;
 }
 
+
 void ACarPawn::Tick(float Delta)
 {
     Super::Tick(Delta);
@@ -316,6 +329,46 @@ void ACarPawn::updateInCarHUD()
 }
 
 
+const int PAINT_MAT_INDEX = 2;
+const int UNSAFE_MAT_INDEX = 6;
+
+void ACarPawn::updateMaterial(double measure) {
+	USkeletalMeshComponent* mesh = GetMesh();
+	if (NULL == unsafe_mats_[0] || NULL == safe_mats_[0]) {
+		FLinearColor 
+			slo(9.0/255.0,   0.0,         107.0/255.0), 
+	        shi(147.0/255.0, 252.0/255.0, 1.0), 
+			uslo(82.0/255.0,0.0,0.0), 
+			ushi(1.0,58.0/255.0,0.0);
+		for (int i = 0; i < NMATS; i++) {
+			unsafe_mats_[i] = UMaterialInstanceDynamic::Create(base_material_, NULL);
+			safe_mats_[i]   = UMaterialInstanceDynamic::Create(base_material_, NULL);
+			//unsafe_mat_ = mesh->GetMaterial(UNSAFE_MAT_INDEX);
+			//safe_mat_ = mesh->GetMaterial(PAINT_MAT_INDEX); 
+			unsafe_mats_[i]->SetVectorParameterValue(TEXT("Base Color"), lerpColor(uslo,ushi,((double)i)/((double)NMATS-1)));
+			safe_mats_[i]->SetVectorParameterValue(TEXT("Base Color"), lerpColor(slo, shi, ((double)i)/((double)NMATS-1)));
+			//base_material_->SetVectorParameterValue(TEXT("Base Color"), red);
+		}
+	}
+	double MEAS_MAX = 300000000.0L;
+	double MEAS_MIN = -100000000.0L;
+	int n = NMATS - 1;
+	static int j = 0;
+	static int jj = 0;
+	static bool b = 0;
+	b = (measure < 0.0);
+	//measure = 299912453.563872;
+	if (measure < 0.0) {
+		j = n * (measure < MEAS_MIN ? 1.0 : measure / MEAS_MIN);
+		jj = j < 0 ? 0 : j >= NMATS ? NMATS - 1 : j;
+		mesh->SetMaterial(PAINT_MAT_INDEX, unsafe_mats_[jj]);
+	}
+	else {
+		j = n * (measure > MEAS_MAX ? 1.0 : measure / MEAS_MAX);
+		jj = j < 0 ? 0 : j >= NMATS ? NMATS - 1 : j;
+		mesh->SetMaterial(PAINT_MAT_INDEX, safe_mats_[jj]);
+	}
+}
 
 void ACarPawn::updatePhysicsMaterial()
 {

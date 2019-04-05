@@ -24,10 +24,7 @@ const num vaf = 1.0;
 
 Monitor::Monitor() {
 	b1 = b2 = b3 = b4 = 0;
-	_cycles = 0;
-	_velStarted = _finished = false;
-	_velAvg = 0.0;
-	ctrl_ticks = phys_ticks = 0;
+	
 	LPTSTR lpszPipename = TEXT("\\\\.\\pipe\\VeriPhy");
 	DWORD dwMode = PIPE_READMODE_MESSAGE;
 	if(USE_NAMED_PIPE)
@@ -107,16 +104,13 @@ void Monitor::consts(double aT, double aeps) {
 	fprintf(_outfile, "%d,%d\n", (int)(_T*10.0), (int)_eps);
 	fflush(_outfile);
 	aT = 0.1;
-	_A = 3.50;
+	_A = 3.40;
 	_B = 1.50;
 	_T = aT;
 	_eps = aeps;
 	if (USE_NAMED_PIPE) {
 		int32_t words[] = { acc(_A),acc(_B),tim(_T),_eps};
 		DWORD writ;
-		char buff[256];
-		snprintf(buff, 256, "FirstTimeConsts: %d, %d, %d, %d", acc(_A), acc(_B), tim(_T), (int)_eps);
-		UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 		WriteFile(_pipe, (char*)&words, sizeof(words), &writ, NULL);
 	}
 }
@@ -127,31 +121,16 @@ void Monitor::sense(double t, double v, double xg, double yg) {
 	_sense.push_back(rec);
 	fprintf(_outfile, "%d,%d,%d,%d,", tim(t), vel(v), pos(xg), pos(yg));
 	_tpost = t; _vpost = v; _xgpost = xg; _ygpost = yg;
-	if (_vpost < 0.0 || _vpost <= 1.0E-5) {
+	if (_vpost < 0.0) {
 		_vpost = 0.0;
-	}
-	if (!_velStarted && _vpost > 1.0E-5) {
-		_velStarted = true;
-		_velAvg = 0.0;
-	}
-	if (_velStarted && !_finished) {
-		_cycles++;
-		double oldFac = ((double)(_cycles - 1)) / (double)_cycles;
-		double newFac = 1.0 / (double)_cycles;
-		_velAvg = oldFac * _velAvg + newFac * _vpost;
 	}
 	if (USE_NAMED_PIPE) {
 		int32_t words[] = { tim(t),vel(v), pos(xg), pos(yg) };
 		DWORD writ;
-		char buff[256];
-		snprintf(buff, 256, "WriteSensedVal: %d, %d, %d, %d", tim(t), vel(v), pos(xg), pos(yg));
-		UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 		WriteFile(_pipe, (char*)&words, sizeof(words), &writ, NULL);
 	}
-	if (!USE_NAMED_PIPE && !_finished) {
-		phys_ticks++;
-		if (!plantOk()) { phys_fails++; }
-	}
+	phys_ticks++;
+	if (!plantOk()) phys_fails++;
 }
 
 void Monitor::afterSense() {
@@ -164,70 +143,49 @@ void Monitor::ctrl(double a, double k, double t, double vl, double vh, double xg
 	_ctrl.push_back(rec);
 	char req[1]; DWORD nRead; bool ret;
 	if (USE_NAMED_PIPE) {
-		char buff[256];
-		snprintf(buff, 256, "BeforeReadPlant");
-		UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 		ret = ReadFile(_pipe, req, sizeof(req), &nRead, NULL);
-		snprintf(buff, 256, "AfterReadPlant: %d", req[0]);
-		UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
-		if(USE_NAMED_PIPE && !_finished) phys_ticks++;
 		_extPlantMon = req[0];
-		if (USE_NAMED_PIPE && _extPlantMon && !_finished) phys_fails++;
 	}
 	fprintf(_outfile, "%d,%d,%d,%d,%d,%d,%d\n", acc(a), curv(k), tim(t), vel(vh), vel(vl), pos(xg), pos(yg));
 	if (USE_NAMED_PIPE) {
 		if (_extPlantMon) {
 			int32_t words[] = { acc(_A),acc(_B),tim(_T),_eps };
 			DWORD writ;
-			char buff[256];
-			snprintf(buff, 256, "write reinit: %d %d %d %d", acc(_A), acc(_B), tim(_T), (int)_eps);
-			UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 			WriteFile(_pipe, (char*)&words, sizeof(words), &writ, NULL);
-			snprintf(buff, 256, "write firstCtrl: %d %d %d %d %d %d %d", acc(a), curv(k), tim(t), vel(vh), vel(vl), pos(xg), pos(yg));
-			UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 			int32_t words2[] = { acc(a),curv(k),tim(t),vel(vh),vel(vl),pos(xg),pos(yg) };
 			WriteFile(_pipe, (char*)&words2, sizeof(words2), &writ, NULL);
-			snprintf(buff, 256, "wrote firstCtrl");
-			UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
+			//ctrl_ticks = 0; // skip synch message after ctrl monitor
 		}
 		else {
-			char buff[256];
-			snprintf(buff, 256, "2 write first ctrl: %d %d %d %d %d %d %d", acc(a), curv(k), tim(t), vel(vh), vel(vl), pos(xg), pos(yg));
-			UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 			int32_t words[] = { acc(a),curv(k),tim(t),vel(vh),vel(vl),pos(xg),pos(yg) };
 			DWORD writ;
 			WriteFile(_pipe, (char*)&words, sizeof(words), &writ, NULL);
-			snprintf(buff, 256, "2 wrote first ctrl");
-			UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 		}
 	}
-	_vpost = _v;
 	_apost = a; _kpost = k; _tpost = t; _vlpost = vl; _vhpost = vh; _xgpost = xg; _ygpost = yg;
-	if (!_finished) ctrl_ticks++;
+	ctrl_ticks++;
 	if (ctrl_ticks > 1) {
-		//bool dblCtrl = !ctrlOk();
+		bool dblCtrl = !ctrlOk();
 		if (USE_NAMED_PIPE) {
-			char buff[256];
-			snprintf(buff, 256, "CtrlTicks1 read b4 extCtrlMon");
-			UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 			ret = ReadFile(_pipe, req, sizeof(req), &nRead, NULL);
-			snprintf(buff, 256, "CtrlTicks1 read: %d", req[0]);
-			UE_LOG(LogTemp, Log, TEXT("%s"), *FString(buff));
 			_extCtrlMon = req[0];
 		}
-		if (USE_NAMED_PIPE && _extCtrlMon && !_finished) {
+		if (dblCtrl || (USE_NAMED_PIPE && _extCtrlMon)) {
 			ctrl_fails++;
-		} else if (!USE_NAMED_PIPE && !_finished) {
-			int x = 2;
-			if (!ctrlOk()) {
-				ctrl_fails++;
-			}
+		}
+		if (USE_NAMED_PIPE && (dblCtrl != _extCtrlMon)) {
+			int i = !!dblCtrl;
 		}
 	}
-}
-
-void Monitor::ctrlFallback(double a) {
-	_apost = a;
+	bool b1 = _kpost == 0 && _xgpost == 0;
+	bool b2 = _xgpost > 0 && _kpost > 0;
+	bool b3 = _xgpost < 0 && _kpost < 0;
+	if (!((b1)
+		|| (b2)
+		|| (b3)
+		)) {
+		case_fails++;
+	}
 }
 
 void Monitor::afterCtrl() {
@@ -236,36 +194,157 @@ void Monitor::afterCtrl() {
 
 const bool SIMP = true;
 
-bool Monitor::ctrlOk() {
-bool xk = (_xgpost >= 0 && _kpost >= 0) || (_xgpost <= 0 && _kpost <= 0);
-double lo = (_kpost*sq(_eps) - 200 * _eps) * 100;
-double mid = _kpost * (sq(_xgpost)+ sq(_ygpost)) - 2 * _xgpost * 100 * 10;
-double hi = (_kpost*sq(_eps) + 200 * _eps) * 100;
-bool circ = lo <= mid && mid <= hi;
-bool yg = _ygpost >= 0;
-bool vbound = 0 <= _vlpost && _vlpost <= _vhpost;
-bool abound = -_B <= _apost && _apost <= _A;
-bool vpos = 10 * _v + _apost * _T >= 0;
-double term1 = (10000 + 2 * _eps*abs(_kpost) * 100 + sq(_eps*_kpost));
-double termB = _v*_T * 20 * _B + _apost * _B*sq(_T);
-double termA = _v*_T * 20 * _A + _apost * _A*sq(_T);
-double lhs1 = term1 * (termB + (sq(_v * 10 + _apost * _T) - sq(10 * _vhpost)));
-double lhs2 = term1 * (termA + (sq(_vlpost * 10)- sq(_v * 10 + _apost * _T)));
-bool fancyHi =
-    (_v <= _vhpost
-        && (_apost <= 0
-		    || 10 * _v + _apost * _T <= 10 * _vhpost))
-	|| (lhs1 <= 2 * _B*(abs(_xgpost) - 10 * _eps) * 10000 * 100)
-	|| (lhs1 <= 2 * _B*(_ygpost - 10 * _eps) * 10000 * 100);
-bool fancyLo =
-	(_vlpost <= _v 
-		&& (_apost >= 0 
-			|| 10 * _v + _apost * _T >= 10 * _vlpost)) 
-	|| (lhs2 <= 2 * _A*(abs(_xgpost) - 10 * _eps) * 10000 * 100)
-	|| (lhs2 <= 2 * _A*(_ygpost - 10 * _eps) * 10000 * 100);
-bool signs = (_v >= 0 && 0 <= _T) && _tpost == 0 && _vpost == _v;
-double cm = xk && circ && yg && vbound && abound && vpos && fancyHi && fancyLo && signs;
-return cm;
+bool Monitor::ctrlOk(){
+	num lo = _k * (sq(_xgpost) + sq(_ygpost)) - 2 * _eps;
+	num mid = _kpost * (sq(_xgpost) + sq(_ygpost)) - 2 * _xgpost;
+	num hi = _k * (sq(_xgpost) + sq(_ygpost)) + 2 * _eps;
+
+	bool t1a = onUpperHalfPlane(_xgpost, _ygpost) &&
+		onAnnulus(_xgpost, _ygpost, _kpost, _eps) &&
+		controllableSpeedGoal(_vpost, _vlpost, _vhpost) &&
+		_kpost == 0 &&
+		_xgpost == 0;
+	bool t2a = -_B <= _a && _a <= _A;
+	bool b31a = _vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost));
+	if (b31a) {
+		if (_a <= 0) {
+			b1++;
+		}
+		else if (_a >= 0 && _vpost + _a * _T <= _vhpost){
+			b2++;
+		}
+	}
+	bool b32a = _a >= 0 &&
+		(1 + 2 * _eps*_kpost + sq(_eps*_kpost))
+		*((_vpost*_T
+			+ _a / 2 * sq(_T))
+			- ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B)))
+		<= (abs(_ygpost) - _eps);
+	bool b33a = _a < 0 &&
+		(1 + 2 * _eps*_kpost + sq(_eps*_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a)) - sq(_vhpost)) / (2 * _B)))
+		<= (abs(_ygpost) - _eps);
+	bool t3a = b31a || b32a || b33a;
+	bool b41a =  _vlpost <= _vpost && (_a >= 0 ||((!SIMP) && _a <= 0 && _vpost + _a * _T >= _vlpost));
+	if (b41a) {
+		if (_a >= 0 ) {
+			b3++;
+		}
+		else if (_a <= 0 && _vpost + _a * _T >= _vlpost){
+			b4++;
+		}
+	}
+	bool b42a = _a >= 0 && (1 + 2 * _eps*_kpost + sq(_eps*_kpost))
+		*((_vpost*_T
+			+ _a / 2 * sq(_T))
+			+ (((sq(_vlpost) - sq(_vpost + _a * _T)))
+				/ (2 * _A)))
+		<= abs(_ygpost) - _eps;
+	bool b43a = _a < 0 && (1 + 2 * _eps*_kpost + sq(_eps*_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a)
+			+ _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ ((sq(_vlpost) - sq(_vpost + _a * brakeCycleTime(_vpost, _a)))
+				/ (2 * _A)))
+		<= abs(_ygpost) - _eps;
+	bool t4a = b41a || b42a || b43a;
+	bool c1 = t1a && t2a && t3a && t4a;
+
+	bool t1b = onUpperHalfPlane(_xgpost, _ygpost) && onAnnulus(_xgpost, _ygpost, _kpost, _eps) && controllableSpeedGoal(_vpost, _vlpost, _vhpost) && _xgpost > 0 && _kpost > 0;
+	bool t2b = -_B <= _a && _a <= _A;
+	bool b31b = (_vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost)));
+	if (b31b) {
+		if (_a <= 0) {
+			b1++;
+		}
+		else if (_a >= 0 && _vpost + _a * _T <= _vhpost){
+			b2++;
+		}
+	}
+	bool b32b = _a >= 0 && ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*_T + _a / 2 * sq(_T))
+			+ ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B)))) <= abs(_xgpost) - _eps;
+	bool b33b = _a >= 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*_T + _a / 2 * sq(_T))
+			+ ((sq(_vpost + _a * _T)
+				- sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
+	bool b34b = _a < 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a))
+				- sq(_vhpost)) / (2 * _B))) <= abs(_xgpost) - _eps;
+	bool b35b = _a < 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a))
+				- sq(_vhpost)) / (2 * _B)))
+		<= abs(_ygpost) - _eps;
+	bool t3b = b31b || b32b || b33b || b34b || b35b;
+	bool b41b =  _vlpost <= _vpost && (_a >= 0 || ((!SIMP) && _a <= 0 && _vpost + _a * _T >= _vlpost)); 
+	if (b41b) {
+		if (_a >= 0) {
+			b3++;
+		}
+		else if (_a <= 0 && _vpost + _a * _T >= _vlpost){
+			b4++;
+		}
+	}
+	bool b42b = _a >= 0 && ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*_T + _a / 2 * sq(_T))
+			+ ((sq(_vlpost) - sq(_vpost + _a * _T)) / (2 * _A)))) <= abs(_xgpost) - _eps;
+	bool b43b = _a >= 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A))) <= abs(_ygpost) - _eps;
+	bool b44b = _a < 0 && ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ ((sq(_vlpost)
+				- sq((_vpost*tf + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A)))) <= abs(_xgpost) - _eps;
+	bool b45b = _a < 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ ((sq(_vlpost) - sq((_vpost + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A))) <= abs(_ygpost) - _eps;
+	bool t4b = b41b || b42b || b43b || b44b || b45b;
+	bool c2 = t1b && t2b && t3b && t4b;
+	bool t1c = onUpperHalfPlane(_xgpost, _ygpost) && onAnnulus(_xgpost, _ygpost, _kpost, _eps) && controllableSpeedGoal(_vpost, _vlpost, _vhpost) && _xgpost < 0 && _kpost < 0;
+	bool t2c = -_B <= _a && _a <= _A;
+	bool b31c =  _vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost));
+	if (b31c) {
+		if (_a <= 0) {
+			b1++;
+		}
+		else if (_a >= 0 && _vpost + _a * _T <= _vhpost) {
+			b2++;
+		}
+	}
+
+	bool b32c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B))) <= abs(_xgpost) - _eps;
+	bool b33c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq((_vpost + _a * _T)) - sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
+	bool b34c = _a < 0 && ((1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ ((sq((_vpost + _a * brakeCycleTime(_vpost, _a))) - sq(_vhpost)) / (2 * _B)))) <= abs(_xgpost) - _eps;
+	bool b35c = _a < 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ ((sq((_vpost + _a * brakeCycleTime(_vpost, _a))) - sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
+	bool t3c = b31c || b32c || b33c || b34c || b35c;
+	bool b41c =  _vlpost <= _vpost && (_a >= 0 || (!(SIMP) &&_a <= 0 && _vpost + _a * _T >= _vlpost));
+	if (b41c) {
+		if (_a >= 0) {
+			b3++;
+		}
+		else if (_a <= 0 && _vpost + _a * _T >= _vlpost) {
+			b4++;
+		}
+	}
+	bool b42c = _a >= 0 && ((1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A)))) <= abs(_xgpost) - _eps;
+	bool b43c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A))) <= abs(_ygpost) - _eps;
+	bool b44c = _a < 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
+			+ (sq(_vlpost) - sq(_vpost + _a * brakeCycleTime(_vpost, _a))) / (2 * _A)) <= abs(_xgpost) - _eps;
+	bool b45c = _a < 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
+		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a))) + ((sq(_vlpost) - sq((_vpost + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A))) <= abs(_ygpost) - _eps;
+	bool t4c = b41c || b42c || b43c || b44c || b45c;
+	bool c3 = t1c && t2c && t3c && t4c;
+	return c1 || c2 || c3;
 }
 
 void Monitor::ctrlErr(std::string &buf) {
@@ -486,54 +565,16 @@ size_t Monitor::age() {
 }
 
 bool Monitor::plantOk() {
-	double _a = _apost;
-	bool time = _tpost >= 0 && _tpost <= _T;
-	double lo = (_k*sq(_eps) - 2 * _eps);
-	double mid = _k *(sq(_xgpost) + sq(_ygpost)) - 2 * _xgpost;
-	double hi = (_k*sq(_eps) + 2 * _eps);
-	bool circ = lo <= mid && mid <= hi;
-	bool lob1 = _a < 0;
-	double lob2l = _vpost;
-	double lob2r = _v + _a * _tpost;
-	bool lob2 = lob2l <= lob2r;
-	double lob3l = _vpost;
-	double lob3r = _v;
-	bool lob3 = lob3l >= lob3r;
-	//(a>=0->10*vpost<=10*v+a*tpost&vpost>=v)
-	bool alo = (lob1 || (lob2 && lob3 ));
-	bool hib1 = _a > 0;
-	double hib2l = _vpost;
-	double hib2r = _v + _a * _tpost;
-	bool hib2 = hib2l >= hib2r;
-	double hib3l = _vpost;
-	double hib3r = _v;
-	bool hib3 = hib3l <= hib3r;
-	// (a <= 0->10 * vpost >= 10 * v + a * tpost&vpost <= v)
-	bool ahi = (hib1 || (hib2 && hib3));
-	bool vhi = (_vpost <= _vh
-		|| (1 + 2 * _eps*abs(_k) + sq(_eps*_k)*(_vpost*(_T - _tpost) * 2 * _B + _a * _B*(sq(_T - _tpost)) + (sq(_vpost + _a * (_T - _tpost)) - sq(_vh)))
-			<= 2 * _B*(_ygpost -  _eps)
-			|| (1 + 2 * _eps*abs(_k) + sq(_eps*_k)*(_vpost*(_T - _tpost) * 2 * _B + _a * _B*(sq(_T - _tpost)) + (sq(_vpost + _a * (_T - _tpost)) - sq(_vh)))				<= 2 * _B*(abs(_xgpost) - 10 * _eps) * 1000000)));
-	bool vlo =
-		(_vl <= _vpost
-		|| (1 + 2 * _eps*abs(_k)  + sq(_eps*_k)*(_vpost*(_T - _tpost) * 2 * _A + _a * _A*(sq(_T - _tpost)) + (sq(_vl) - sq(_vpost + _a * (_T - _tpost))))
-			<= (_ygpost -  _eps) 
-		|| (1 + 2 * _eps*abs(_k)  + sq(_eps*_k)*(_vpost*(_T - _tpost) * 2 * _A + _a * _A*(sq(_T - _tpost)) + (sq(_vl) - sq(_vpost + _a * (_T - _tpost))))
-			<= (abs(_xgpost) -  _eps) )));
-	bool forward = _vpost >= 0;
-	bool pm = time && circ && alo && ahi && vhi && vlo && forward;
-	return pm;
-/*	num lo  = _k * (sq(_xgpost) + sq(_ygpost)) - 2 * _eps;
+	num lo  = _k * (sq(_xgpost) + sq(_ygpost)) - 2 * _eps;
 	num mid = _kpost * (sq(_xgpost) + sq(_ygpost)) - 2 * _xgpost;
 	num hi  = _k * (sq(_xgpost) + sq(_ygpost)) + 2 * _eps;
-
 	bool front = 0 <= _ygpost;
 	bool circ = lo <= mid && mid <= hi;
 	bool monotone = _xgpost * _xg <= sq(_xg);
 	bool forward = 0 <= _vpost;
 	bool timely = _tpost <= _T;
-	bool pm = front && circ && monotone && forward && timely;*/
-	//return pm;
+	bool pm = front && circ && monotone && forward && timely;
+	return pm;
 }
 
 
@@ -656,153 +697,3 @@ static bool ctrl_okie() {
 	*/
 return false;
 }
-/*	num lo = _k * (sq(_xgpost) + sq(_ygpost)) - 2 * _eps;
-	num mid = _kpost * (sq(_xgpost) + sq(_ygpost)) - 2 * _xgpost;
-	num hi = _k * (sq(_xgpost) + sq(_ygpost)) + 2 * _eps;
-
-	bool t1a = onUpperHalfPlane(_xgpost, _ygpost) &&
-		onAnnulus(_xgpost, _ygpost, _kpost, _eps) &&
-		controllableSpeedGoal(_vpost, _vlpost, _vhpost) &&
-		_kpost == 0 &&
-		_xgpost == 0;
-	bool t2a = -_B <= _a && _a <= _A;
-	bool b31a = _vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost));
-	if (b31a) {
-		if (_a <= 0) {
-			b1++;
-		}
-		else if (_a >= 0 && _vpost + _a * _T <= _vhpost){
-			b2++;
-		}
-	}
-	bool b32a = _a >= 0 &&
-		(1 + 2 * _eps*_kpost + sq(_eps*_kpost))
-		*((_vpost*_T
-			+ _a / 2 * sq(_T))
-			- ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B)))
-		<= (abs(_ygpost) - _eps);
-	bool b33a = _a < 0 &&
-		(1 + 2 * _eps*_kpost + sq(_eps*_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a)) - sq(_vhpost)) / (2 * _B)))
-		<= (abs(_ygpost) - _eps);
-	bool t3a = b31a || b32a || b33a;
-	bool b41a =  _vlpost <= _vpost && (_a >= 0 ||((!SIMP) && _a <= 0 && _vpost + _a * _T >= _vlpost));
-	if (b41a) {
-		if (_a >= 0 ) {
-			b3++;
-		}
-		else if (_a <= 0 && _vpost + _a * _T >= _vlpost){
-			b4++;
-		}
-	}
-	bool b42a = _a >= 0 && (1 + 2 * _eps*_kpost + sq(_eps*_kpost))
-		*((_vpost*_T
-			+ _a / 2 * sq(_T))
-			+ (((sq(_vlpost) - sq(_vpost + _a * _T)))
-				/ (2 * _A)))
-		<= abs(_ygpost) - _eps;
-	bool b43a = _a < 0 && (1 + 2 * _eps*_kpost + sq(_eps*_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a)
-			+ _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ ((sq(_vlpost) - sq(_vpost + _a * brakeCycleTime(_vpost, _a)))
-				/ (2 * _A)))
-		<= abs(_ygpost) - _eps;
-	bool t4a = b41a || b42a || b43a;
-	bool c1 = t1a && t2a && t3a && t4a;
-
-	bool t1b = onUpperHalfPlane(_xgpost, _ygpost) && onAnnulus(_xgpost, _ygpost, _kpost, _eps) && controllableSpeedGoal(_vpost, _vlpost, _vhpost) && _xgpost > 0 && _kpost > 0;
-	bool t2b = -_B <= _a && _a <= _A;
-	bool b31b = (_vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost)));
-	if (b31b) {
-		if (_a <= 0) {
-			b1++;
-		}
-		else if (_a >= 0 && _vpost + _a * _T <= _vhpost){
-			b2++;
-		}
-	}
-	bool b32b = _a >= 0 && ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*_T + _a / 2 * sq(_T))
-			+ ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B)))) <= abs(_xgpost) - _eps;
-	bool b33b = _a >= 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*_T + _a / 2 * sq(_T))
-			+ ((sq(_vpost + _a * _T)
-				- sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
-	bool b34b = _a < 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a))
-				- sq(_vhpost)) / (2 * _B))) <= abs(_xgpost) - _eps;
-	bool b35b = _a < 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ ((sq(_vpost + _a * brakeCycleTime(_vpost, _a))
-				- sq(_vhpost)) / (2 * _B)))
-		<= abs(_ygpost) - _eps;
-	bool t3b = b31b || b32b || b33b || b34b || b35b;
-	bool b41b =  _vlpost <= _vpost && (_a >= 0 || ((!SIMP) && _a <= 0 && _vpost + _a * _T >= _vlpost));
-	if (b41b) {
-		if (_a >= 0) {
-			b3++;
-		}
-		else if (_a <= 0 && _vpost + _a * _T >= _vlpost){
-			b4++;
-		}
-	}
-	bool b42b = _a >= 0 && ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*_T + _a / 2 * sq(_T))
-			+ ((sq(_vlpost) - sq(_vpost + _a * _T)) / (2 * _A)))) <= abs(_xgpost) - _eps;
-	bool b43b = _a >= 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A))) <= abs(_ygpost) - _eps;
-	bool b44b = _a < 0 && ((1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ ((sq(_vlpost)
-				- sq((_vpost*tf + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A)))) <= abs(_xgpost) - _eps;
-	bool b45b = _a < 0 && (1 + 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ ((sq(_vlpost) - sq((_vpost + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A))) <= abs(_ygpost) - _eps;
-	bool t4b = b41b || b42b || b43b || b44b || b45b;
-	bool c2 = t1b && t2b && t3b && t4b;
-	bool t1c = onUpperHalfPlane(_xgpost, _ygpost) && onAnnulus(_xgpost, _ygpost, _kpost, _eps) && controllableSpeedGoal(_vpost, _vlpost, _vhpost) && _xgpost < 0 && _kpost < 0;
-	bool t2c = -_B <= _a && _a <= _A;
-	bool b31c =  _vpost <= _vhpost && (_a <= 0 || ((!SIMP) && _a >= 0 && _vpost + _a * _T <= _vhpost));
-	if (b31c) {
-		if (_a <= 0) {
-			b1++;
-		}
-		else if (_a >= 0 && _vpost + _a * _T <= _vhpost) {
-			b2++;
-		}
-	}
-
-	bool b32c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vpost + _a * _T) - sq(_vhpost)) / (2 * _B))) <= abs(_xgpost) - _eps;
-	bool b33c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq((_vpost + _a * _T)) - sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
-	bool b34c = _a < 0 && ((1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ ((sq((_vpost + _a * brakeCycleTime(_vpost, _a))) - sq(_vhpost)) / (2 * _B)))) <= abs(_xgpost) - _eps;
-	bool b35c = _a < 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ ((sq((_vpost + _a * brakeCycleTime(_vpost, _a))) - sq(_vhpost)) / (2 * _B))) <= abs(_ygpost) - _eps;
-	bool t3c = b31c || b32c || b33c || b34c || b35c;
-	bool b41c =  _vlpost <= _vpost && (_a >= 0 || (!(SIMP) &&_a <= 0 && _vpost + _a * _T >= _vlpost));
-	if (b41c) {
-		if (_a >= 0) {
-			b3++;
-		}
-		else if (_a <= 0 && _vpost + _a * _T >= _vlpost) {
-			b4++;
-		}
-	}
-	bool b42c = _a >= 0 && ((1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A)))) <= abs(_xgpost) - _eps;
-	bool b43c = _a >= 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*_T + _a / 2 * sq(_T)) + ((sq(_vlpost) - sq((_vpost + _a * _T))) / (2 * _A))) <= abs(_ygpost) - _eps;
-	bool b44c = _a < 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a)))
-			+ (sq(_vlpost) - sq(_vpost + _a * brakeCycleTime(_vpost, _a))) / (2 * _A)) <= abs(_xgpost) - _eps;
-	bool b45c = _a < 0 && (1 - 2 * _eps*_kpost + sq(_eps)*sq(_kpost))
-		*((_vpost*brakeCycleTime(_vpost, _a) + _a / 2 * sq(brakeCycleTime(_vpost, _a))) + ((sq(_vlpost) - sq((_vpost + _a * brakeCycleTime(_vpost, _a)))) / (2 * _A))) <= abs(_ygpost) - _eps;
-	bool t4c = b41c || b42c || b43c || b44c || b45c;
-	bool c3 = t1c && t2c && t3c && t4c;
-	return c1 || c2 || c3;*/

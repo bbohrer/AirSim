@@ -31,7 +31,7 @@ struct NodeDatum {
 		if (isArc) {
 			return 40.0;
 		} else {
-			return 50.0;
+			return 20.0;
 		}
 	}
 	const double SLOW_LIM = 20;
@@ -99,7 +99,7 @@ struct NodeDatum {
 
 	
 	// Feedback controller should aim for middle of speed limits
-	double targetVelocity(double t) { return vlo*(1.0 - t) + vhi*t; }
+	double targetVelocity() { return (vlo + vhi) * 0.5; }
 
 	// Radius adjusted for clockwise vs. counter-clockwise
 	double signedRad() {

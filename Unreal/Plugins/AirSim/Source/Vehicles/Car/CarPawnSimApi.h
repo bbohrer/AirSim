@@ -21,14 +21,8 @@ enum ControlMode {
 };
 
 enum FeedbackMode {
-	BANGBANG = 0,
-	PDNORMAL,
-	PDNARROW,
-	PDWIDE,
-	PDOVERDRIVE,
-	PDFAST,
-	PDSLOW,
-	HUMANBOX
+	PD = 0,
+	BANGBANG = 1
 };
 
 enum Level {
@@ -93,10 +87,5 @@ private:
 	double defaultW;
 	double lastTime_;
 private:
-	bool cruise;
-	bool cruiseDir;
-	bool cruiseDirSet;
-	int ctrlTicks;
-	bool slowClose;
 	bool atEnd(pt2 p, pt2 d, double v);
 };

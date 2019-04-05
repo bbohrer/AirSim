@@ -29,7 +29,7 @@ void CarPawnSimApi::loadRect() {
 	double rad = 3.5;
 	bool ccw = true;
 	double vlo = 0.0;
-	double vhi = 18.0;
+	double vhi = 17.0;
 	//double rad = ((double)RADIUS_CM) / 100.0;
 	plan_.lineTo(rad, 0.0, 0.0, 0.00, 30.0 - off, vlo, vhi);
 	plan_.arcTo(off, off, 30.0, off, 30.0 - off, 0.0, 30.0 - off, vlo, vhi,ccw);
@@ -105,12 +105,12 @@ void CarPawnSimApi::parcTo(double rad, pt2 to, pt2 c, pt2 from, bool cW) {
 	double OFFX = -200.0;
 	double OFFY = -100.0;
 	double vlo = 3.0;
-	double vhi = 42.0;
+	double vhi = 22.0;
 	plan_.arcTo(rad, to.x+OFFX, to.y+OFFY, c.x+OFFX, c.y+OFFY, from.x+OFFX, from.y+OFFY, vlo, vhi, cW);
 }
 // Construct the "4-leaf Clover" level, which is all arcs
 void CarPawnSimApi::loadClover() {
-	double rad = 3.0;//((double)RADIUS_CM) / 100.0;
+	double rad = 18.0;//((double)RADIUS_CM) / 100.0;
 	//double margin = 3.0; // Turning area
 	pt2  ptl = { -200,200 }, pt = { 0,200 }, ptr = { 200,200 },
 		pl = { -200,0 }, pr = { 200,0 },
@@ -174,18 +174,14 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	: PawnSimApi(params),
 	keyboard_controls_(keyboard_controls)
 {
-	cruise = false;
-	cruiseDir = false;
-	cruiseDirSet = false;
-
 	// To track how long each system cycle actually takes
 	lastTime_ = FPlatformTime::Seconds();
 	// Controller mode, e.g. testing vs. follow a plan
 	mode_ = PLAN;
 	// Which low-level feedback controller?
-	fb_ = PDNORMAL;
+	fb_ = PD;
 	// Which level/environment?
-	level_ = LCLOVER;
+	level_ = LGRIDS;
 	// What node are we currebntly following in the plan? None!
 	curNode_ = -1;
 	curND_ = {};
@@ -221,7 +217,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	double MSPF_est = 1.0 / FPS_est;
 	if (!m.isSaved())
 		m.saveTo("C:\\Users\\Brandon\\Documents\\out.csv");
-	m.consts(MSPF_est, 3.0);
+	m.consts(MSPF_est, CIR_TOL/100);
 	// Compute and log initial control values
 	auto accel = 0; // Not accelerating yet
 	// Velocity limits *by time we reach waypoint*
@@ -233,9 +229,8 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 		pt2 rel = (curND_.end - pos2);
 		auto orientation = st.kinematics_estimated.pose.orientation;
 		auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
-		pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
-		//pt2 crdir2 = pt2(-dvec.x(), -dvec.y()).unit();
-		lastDir = dir2;
+		pt2 crdir2 = pt2(-dvec.x(), -dvec.y()).unit();
+		lastDir = crdir2;
 		double altR = (rel.x*rel.x + rel.y*rel.y) / (2.0*rel.x);
 		double altK = 1.0 / altR;
 		if (rel.y <= 0.05) {
@@ -385,8 +380,6 @@ void CarPawnSimApi::updateCarControls()
 		else if (atEnd(pos2, dir2, speed)) {
 			auto succs = plan_.getSuccs(curNode_);
 			curNode_ = succs[0];
-			if (curNode_ == 0) 
-				m._finished = true;
 		}
 		plan_.getNode(curNode_, curND_);
 
@@ -394,15 +387,15 @@ void CarPawnSimApi::updateCarControls()
 		// Print angular velocity ON-SCREEN for useful debugging
 		char buf[256];
 		snprintf(buf, 256, "%f", st.kinematics_estimated.twist.angular.z());
-		//UAirBlueprintLib::LogMessageString("Omega: ", buf, LogDebugLevel::Informational);
+		UAirBlueprintLib::LogMessageString("Omega: ", buf, LogDebugLevel::Informational);
 
 		// More ON-SCREEN debug info
 		if (rc_data.is_initialized) {
 			if (!rc_data.is_valid) {
-				//UAirBlueprintLib::LogMessageString("Control Mode: ", "[INVALID] Wheel/Joystick", LogDebugLevel::Informational);
+				UAirBlueprintLib::LogMessageString("Control Mode: ", "[INVALID] Wheel/Joystick", LogDebugLevel::Informational);
 				return;
 			}
-//			UAirBlueprintLib::LogMessageString("Control Mode: ", "Wheel/Joystick", LogDebugLevel::Informational);
+			UAirBlueprintLib::LogMessageString("Control Mode: ", "Wheel/Joystick", LogDebugLevel::Informational);
 
 			// Nonsense for fancy hardware - ignore
 			if (rc_data.vendor_id == "VID_044F") {
@@ -442,7 +435,7 @@ void CarPawnSimApi::updateCarControls()
 		}
 		else {
 			// Main case of keyboard control
-			//UAirBlueprintLib::LogMessageString("Control Mode: ", "Keyboard", LogDebugLevel::Informational);
+			UAirBlueprintLib::LogMessageString("Control Mode: ", "Keyboard", LogDebugLevel::Informational);
 			current_controls_ = keyboard_controls_;
 		}
 
@@ -452,7 +445,7 @@ void CarPawnSimApi::updateCarControls()
 			vehicle_api_->setCarControls(current_controls_);
 		}
 		else {
-			//UAirBlueprintLib::LogMessageString("Control Mode: ", "API", LogDebugLevel::Informational);
+			UAirBlueprintLib::LogMessageString("Control Mode: ", "API", LogDebugLevel::Informational);
 			current_controls_ = vehicle_api_->getCarControls();
 		}
 		double aUp = current_controls_.throttle * ACCEL_MAX;
@@ -481,28 +474,23 @@ void CarPawnSimApi::updateCarControls()
 			//snprintf(buf, 256, "%f %%", 100.0 * m.caseFailRate());
 			//UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%f %f", m.pathDevOf(k, 1.0, g.x, g.y), curND_.endDist(pos2, dir2, speed));
-			//UAirBlueprintLib::LogMessageString("END: ", buf, LogDebugLevel::Informational);
+			UAirBlueprintLib::LogMessageString("END: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%d\t%d\t%d\t%d", m.b1, m.b2, m.b3, m.b4);
-			//UAirBlueprintLib::LogMessageString("MONS: ", buf, LogDebugLevel::Informational);
+			UAirBlueprintLib::LogMessageString("MONS: ", buf, LogDebugLevel::Informational);
 
-			if (m._extCtrlMon || !m.ctrlOk()) {
+			if (!m.ctrlOk()) {
 				std::string msg;
 				m.ctrlErr(msg);
-				//UAirBlueprintLib::LogMessageString("CTRLERR: ", msg.c_str(), LogDebugLevel::Informational);
+
+				//snprintf(buf, 256, msg.c_str(), m.velDeviation());
+				UAirBlueprintLib::LogMessageString("CTRLERR: ", msg.c_str(), LogDebugLevel::Informational);
+				//		snprintf(buf, 256, "%f m", m.pathDeviation());
+						//UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
 				current_controls_.throttle = 0;
 				current_controls_.brake =  1;
+
 			}
 			m.afterCtrl();
-
-			if (true || m._finished) {
-				snprintf(buf, 256, "%f", (double)m.ctrl_fails/(double)m.ctrl_ticks);
-				UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
-				snprintf(buf, 256, "%f", (double)m.phys_fails / (double)m.phys_ticks);
-				UAirBlueprintLib::LogMessageString("PLANT: ", buf, LogDebugLevel::Informational);
-				snprintf(buf, 256, "%f", (double)m._velAvg);
-				UAirBlueprintLib::LogMessageString("VEL: ", buf, LogDebugLevel::Informational);
-			}
-
 		}
 		else {
 			pt2 g = way;
@@ -524,12 +512,7 @@ void CarPawnSimApi::updateCarControls()
 			//} else if (curND_.atEnd(pos2)) {
 		} else if(atEnd(pos2, dir2, speed)){
 			auto succs = plan_.getSuccs(curNode_);
-			cruise = false;
-			cruiseDir = false;
-			cruiseDirSet = false;
 			curNode_ = succs[0];
-			if (curNode_ == 0)
-				m._finished = true;
 		}
 		plan_.getNode(curNode_, curND_);
 
@@ -541,8 +524,7 @@ void CarPawnSimApi::updateCarControls()
 		double distBuffer = level_ == LCLOVER ? 2.5 : 0.0;
 		auto dist = (pt2(pvec[0],pvec[1]) - way).mag() - distBuffer;
 		// Velocity after one timestep acceleration, RELATIVE to target vel
-		double lerp = (fb_ == PDOVERDRIVE ? 2.0 : fb_ == PDFAST ? 0.8 : fb_ == PDSLOW ? 0.3 : 0.35);
-		auto vv = (st.speed + ACCEL_MAX * ep) - curND_.targetVelocity(lerp);
+		auto vv = (st.speed + ACCEL_MAX * ep) - curND_.targetVelocity();
 		// Distance after one timestep
 		auto dd = fmax(0.0, dist - ((CIR_TOL / 100.0) + ep * st.speed + ep * ep * 0.5f * ACCEL_MAX));
 		// Do we need to start braking?
@@ -557,20 +539,6 @@ void CarPawnSimApi::updateCarControls()
 		} else {
 			close = vv >= 0 && (((vv * vv >= dd / (2.0f * BRAKE_MAX))) || st.speed > HARD_LIMIT);
 		}
-		ctrlTicks++;
-		if (ctrlTicks % 1 == 0) {
-			slowClose = close;
-		}
-		if (!cruiseDirSet) {
-			cruiseDir = close;
-			cruiseDirSet = true;
-		} else {
-			if (!cruise && (close != cruiseDir)) {
-				cruise = true;
-			}
-		}
-		if (cruise) close = slowClose;
-		if (fb_ == PDOVERDRIVE) close = false;
 		// For bang-bang steering
 		bool goLeft = wayDiff.isLeftOf(dir2);
 
@@ -583,13 +551,7 @@ void CarPawnSimApi::updateCarControls()
 		
 		// Which control mode? Main control computation here
 		switch (fb_) {
-		case PDNARROW:
-		case PDWIDE:
-		case PDOVERDRIVE:
-		case PDFAST:
-		case PDSLOW:
-		case HUMANBOX:
-		case PDNORMAL: {
+		case PD: {
 			char buf[256];
 			// PD controller uses distance-to-path as proportional
 			// and orientation as "derivative" to control steering
@@ -613,7 +575,7 @@ void CarPawnSimApi::updateCarControls()
 			snprintf(buf, 256, "%f", leftD);
 			//UAirBlueprintLib::LogMessageString("ANGULATE: ", buf, LogDebugLevel::Informational);
 			//goLeft = (leftD >= 0);
-			double P, D, Pfac, Dfac;
+			double P, D;
 			switch (level_) {
 			case LGRIDS: 
 				P = 6.0; D = 0.75; 
@@ -625,28 +587,14 @@ void CarPawnSimApi::updateCarControls()
 			default:
 				P = 2.0; D = 0.25;
 			}
-			switch (fb_) {
-			case PDNARROW: Pfac = 1.5; Dfac = 1.5; break;
-			case PDWIDE: Pfac = 0.7; Dfac = 0.7; break;
-			default: Pfac = 1.0; Dfac = 1.0; break;
-			}
-			double steer = Pfac * P * leftP + Dfac * D * leftD;
+			double steer = P * leftP + D * leftD;
 			if (steer >= 1 || steer <= -1) {
 				int x = 1 + 1;
 			}
-			if (fb_ == HUMANBOX) {
-				ai_controls = keyboard_controls_;
-			} else if (cruise) {
-				ai_controls.steering = steer;
-				// braking still bangbang
-				ai_controls.throttle = close ? 0.0f : 0.99f;
-				ai_controls.brake = close ? 1.0f : 0.0f;
-			} else {
-				ai_controls.steering = steer;
-				// braking still bangbang
-				ai_controls.throttle = close ? 0.0f : 0.99f;
-				ai_controls.brake = close ? 1.0f : 0.0f;
-			}
+			ai_controls.steering = steer;
+			// braking still bangbang
+			ai_controls.throttle = close ? 0.0f : 0.99f;
+			ai_controls.brake = close ? 1.0f : 0.0f;
 			//On-screen debugging
 			snprintf(buf, 256, "%2.2f*%2.2f=%2.2f,\t%2.2f*%2.2f=%2.2f,\tsum=%2.2f", P,leftP,P*leftP,D,leftD,D*leftD,steer);
 			UAirBlueprintLib::LogMessageString("PD: ", buf, LogDebugLevel::Informational);
@@ -670,7 +618,6 @@ void CarPawnSimApi::updateCarControls()
 		double a = aUp + aDown;
 		double k = curND_.isArc ? -1.0 / curND_.signedRad() : 0.0;
 		double vLo = curND_.vlo, vHi = curND_.vhi;
-		char buf[256];
 		if (COORDINATES_RELATIVE) {
 			auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
 			pt2 dir2  = pt2(dvec.x(), dvec.y()).unit();
@@ -687,50 +634,40 @@ void CarPawnSimApi::updateCarControls()
 				altK = (2.0*g.x) / (g.x*g.x + g.y*g.y);
 			}
 			m.sense(ep, speed, gOld.x, gOld.y);
-			m.afterSense();
 
 			m.ctrl(a, altK,0, vLo, vHi, g.x, g.y);
-			snprintf(buf, 256, "%f", a);
-			UAirBlueprintLib::LogMessageString("Acc: ", buf, LogDebugLevel::Informational);
+			char buf[256];
+			snprintf(buf, 256, "%f %%", 100.0 * m.ctrlFailRate());
+			UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%f %%", 100.0 * m.caseFailRate());
+			UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%f %f", m.pathDevOf(k, 1.0, g.x, g.y), curND_.endDist(pos2, dir2, speed));
+			UAirBlueprintLib::LogMessageString("END: ", buf, LogDebugLevel::Informational);
+			snprintf(buf, 256, "%d\t%d\t%d\t%d", m.b1, m.b2, m.b3, m.b4);
+			UAirBlueprintLib::LogMessageString("MONS: ", buf, LogDebugLevel::Informational);
+
 			if (m._extCtrlMon || !m.ctrlOk()) {
-				m.ctrlFallback(-BRAKE_MAX);
 				std::string msg;
 				m.ctrlErr(msg);
 
+				//snprintf(buf, 256, msg.c_str(), m.velDeviation());
+				UAirBlueprintLib::LogMessageString("CTRLERR: ", msg.c_str(), LogDebugLevel::Informational);
 				//		snprintf(buf, 256, "%f m", m.pathDeviation());
 						//UAirBlueprintLib::LogMessageString("Circ: ", buf, LogDebugLevel::Informational);
 				current_controls_.throttle = 0;
-				current_controls_.brake = 1;
-			}
-			m.afterCtrl();
-			snprintf(buf, 256, "%f %%", 100.0 * m.ctrlFailRate());
-			//UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
-			snprintf(buf, 256, "%f %%", 100.0 * m.caseFailRate());
-			//UAirBlueprintLib::LogMessageString("CASE: ", buf, LogDebugLevel::Informational);
-			snprintf(buf, 256, "%f %f", m.pathDevOf(k, 1.0, g.x, g.y), curND_.endDist(pos2, dir2, speed));
-			//UAirBlueprintLib::LogMessageString("END: ", buf, LogDebugLevel::Informational);
-			snprintf(buf, 256, "%d\t%d\t%d\t%d", m.b1, m.b2, m.b3, m.b4);
-			//UAirBlueprintLib::LogMessageString("MONS: ", buf, LogDebugLevel::Informational);
+				current_controls_.brake =  1;
 
-			
-			if (true || m._finished) {
-				snprintf(buf, 256, "%f", (double)m.ctrl_fails / (double)m.ctrl_ticks);
-				UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
-				snprintf(buf, 256, "%f", (double)m.phys_fails / (double)m.phys_ticks);
-				UAirBlueprintLib::LogMessageString("PLANT: ", buf, LogDebugLevel::Informational);
-				snprintf(buf, 256, "%f", (double)m._velAvg);
-				UAirBlueprintLib::LogMessageString("VEL: ", buf, LogDebugLevel::Informational);
 			}
-
 			m.afterCtrl();
 		} else {
 			pt2 g = way;
 			m.sense(ep, speed, g.x, g.y);
 			m.ctrl(a, k, 0, vLo, vHi, g.x, g.y);
 		}
-		lastDir = dir2;
+		lastDir = ldir2;
 		
 		// On-screen log
+		char buf[256];
 		snprintf(buf, 256, "%d: (%f, %f)", vvec[0] >= 0, vxy, xvy);
 		//UAirBlueprintLib::LogMessageString("Str: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "(%f, %f)", pvec[0], pvec[1]);
@@ -740,7 +677,7 @@ void CarPawnSimApi::updateCarControls()
 		snprintf(buf, 256, "from %d(%f,%f) to (%f,%f), left:%d", curNode_, curND_.start.x, curND_.start.y, way.x, way.y, goLeft);
 	//	UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
 		snprintf(buf, 256, "@(%f,%f)  ->(%f,%f)", pos2.x,pos2.y,dir2.x,dir2.y);
-		//UAirBlueprintLib::LogMessageString("Orient: ", buf, LogDebugLevel::Informational);
+		UAirBlueprintLib::LogMessageString("Orient: ", buf, LogDebugLevel::Informational);
 
 		snprintf(buf, 256, "%d (%f)", curNode_, curND_.endDist(pos2,dir2,speed));
 		UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
@@ -750,7 +687,7 @@ void CarPawnSimApi::updateCarControls()
 			vehicle_api_->setCarControls(current_controls_);
 		}
 		else {
-			//UAirBlueprintLib::LogMessageString("Control Mode: ", "API", LogDebugLevel::Informational);
+			UAirBlueprintLib::LogMessageString("Control Mode: ", "API", LogDebugLevel::Informational);
 			current_controls_ = vehicle_api_->getCarControls();
 		}
 
@@ -780,7 +717,7 @@ void CarPawnSimApi::updateCarControls()
 	}
 	char buf[256];
 	snprintf(buf, 256, "%d", (int)m.age());
-	//UAirBlueprintLib::LogMessageString("TIME: ", buf, LogDebugLevel::Informational);
+	UAirBlueprintLib::LogMessageString("TIME: ", buf, LogDebugLevel::Informational);
 	// More screen logging
     //UAirBlueprintLib::LogMessageString("Accel: ", std::to_string(current_controls_.throttle), LogDebugLevel::Informational);
     //UAirBlueprintLib::LogMessageString("Break: ", std::to_string(current_controls_.brake), LogDebugLevel::Informational);

@@ -51,13 +51,14 @@ public:
     {
         return keyboard_controls_;
     }
+	void updateMaterial(double measure);
 
 private:
     void updateHUDStrings();
     void setupVehicleMovementComponent();
     void updateInCarHUD();
     void updatePhysicsMaterial();
-
+	
     void setupInputBindings();
     void onMoveForward(float Val);
     void onMoveRight(float Val);
@@ -77,6 +78,10 @@ private:
     bool is_low_friction_;
     UPhysicalMaterial* slippery_mat_;
     UPhysicalMaterial* non_slippery_mat_;
+	enum { NMATS = 100 };
+	UMaterialInstanceDynamic* unsafe_mats_[NMATS];
+	UMaterialInstanceDynamic* safe_mats_[NMATS];
+	UMaterial* base_material_;
 
     UPROPERTY() USceneComponent* camera_front_center_base_;
     UPROPERTY() USceneComponent* camera_front_left_base_;

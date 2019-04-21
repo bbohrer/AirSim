@@ -98,6 +98,102 @@ bool Monitor::controllableSpeedGoal(num v, num vl, num vh) {
 
 //num abs(num x) { return x > 0 ? x : -x; }
 
+double Monitor::boundaryDist() {
+	if ((_xgpost >= 0.0L && _kpost >= 0.0L) 
+	 || (_xgpost <= 0.0L && _kpost <= 0.0L)) {
+		if (_ygpost > 0.0L) {
+			if (fabsl(_kpost)*_eps <= 100.0L) {
+				if (((_kpost*_eps*_eps) - (200.0L*_eps))*100.0L 
+					< ((_kpost)*(((_xgpost)*(_xgpost)) + ((_ygpost)*(_ygpost)))) - ((((2.0L)*(_xgpost))*(100.0L))*(10.0L))) {
+					if (((_kpost)*(((_xgpost)*(_xgpost)) + ((_ygpost)*(_ygpost)))) - ((((2.0L)*(_xgpost))*(100.0L))*(10.0L)) < (((_kpost)*((_eps)*(_eps))) + ((200.0L)*(_eps)))*(100.0L)) {
+						if (0.0L <= _vlpost) {
+							if (_vlpost < _vhpost) {
+								if (_A*_T <= 10.0L*(_vhpost - _vlpost)) {
+									if (_B*_T <= (10.0L)*(_vhpost - _vlpost)) {
+										if (-_B <= _apost) {
+											if (_apost <= _A) {
+												if (((10.0L)*(_v)) + ((_apost)*(_T)) >= 0.0L) {
+													if (((_v <= _vhpost) && (((10.0L)*(_v)) + ((_apost)*(_T)) <= (10.0L)*(_vhpost))) || (((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_B)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + (((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))) - (((10.0L)*(_vhpost))*((10.0L)*(_vhpost))))) <= ((((2.0L)*(_B))*((fabsl(_xgpost)) - ((10.0L)*(_eps))))*(10000.0L))*(100.0L)) || ((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_B)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + (((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))) - (((10.0L)*(_vhpost))*((10.0L)*(_vhpost))))) <= ((((2.0L)*(_B))*((_ygpost) - ((10.0L)*(_eps))))*(10000.0L))*(100.0L)))) {
+														if (((_vlpost <= _v) && (((10.0L)*(_v)) + ((_apost)*(_T)) >= (10.0L)*(_vlpost))) || (((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_A)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + ((((_vlpost)*(10.0L))*((_vlpost)*(10.0L))) - ((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))))) <= ((((2.0L)*(_A))*((fabsl(_xgpost)) - ((10.0L)*(_eps))))*(10000.0L))*(100.0L)) || ((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_A)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + ((((_vlpost)*(10.0L))*((_vlpost)*(10.0L))) - ((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))))) <= ((((2.0L)*(_A))*((_ygpost) - ((10.0L)*(_eps))))*(10000.0L))*(100.0L)))) {
+															if (_v >= 0.0L) {
+																if (0.0L <= _T) {
+																	if (_vpost == _v) {
+																		if (_tpost == 0.0L) {
+																			return ((((((((((((((((0.0L) + (-(fminl(fmaxl((0.0L) - (_xgpost), (0.0L) - (_kpost)), fmaxl(_xgpost, _kpost))))) + (-((0.0L) - (_ygpost)))) + (-(((fabsl(_kpost))*(_eps)) - (100.0L)))) + (-(((((_kpost)*((_eps)*(_eps))) + (-((200.0L)*(_eps))))*(100.0L)) - (((_kpost)*(((_xgpost)*(_xgpost)) + ((_ygpost)*(_ygpost)))) + (-((((2.0L)*(_xgpost))*(100.0L))*(10.0L))))))) + (-((((_kpost)*(((_xgpost)*(_xgpost)) + ((_ygpost)*(_ygpost)))) + (-((((2.0L)*(_xgpost))*(100.0L))*(10.0L)))) - ((((_kpost)*((_eps)*(_eps))) + ((200.0L)*(_eps)))*(100.0L))))) + (-((0.0L) - (_vlpost)))) + (-((_vlpost) - (_vhpost)))) + (-(((_A)*(_T)) - ((10.0L)*((_vhpost) + (-(_vlpost))))))) + (-(((_B)*(_T)) - ((10.0L)*((_vhpost) + (-(_vlpost))))))) + (-((-(_B)) - (_apost)))) + (-((_apost) - (_A)))) + (-((0.0L) - (((10.0L)*(_v)) + ((_apost)*(_T)))))) + (-(fminl(fmaxl((_v) - (_vhpost), (((10.0L)*(_v)) + ((_apost)*(_T))) - ((10.0L)*(_vhpost))), fminl(((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_B)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + (((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))) + (-(((10.0L)*(_vhpost))*((10.0L)*(_vhpost))))))) - (((((2.0L)*(_B))*((fabsl(_xgpost)) + (-((10.0L)*(_eps)))))*(10000.0L))*(100.0L)), ((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_B)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + (((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))) + (-(((10.0L)*(_vhpost))*((10.0L)*(_vhpost))))))) - (((((2.0L)*(_B))*((_ygpost) + (-((10.0L)*(_eps)))))*(10000.0L))*(100.0L))))))) + (-(fminl(fmaxl((_vlpost) - (_v), ((10.0L)*(_vlpost)) - (((10.0L)*(_v)) + ((_apost)*(_T)))), fminl(((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_A)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + ((((_vlpost)*(10.0L))*((_vlpost)*(10.0L))) + (-((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))))))) - ((((2.0L*_A)*((fabsl(_xgpost)) + (-((10.0L)*(_eps)))))*(10000.0L))*(100.0L)), ((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_A)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + ((((_vlpost)*(10.0L))*((_vlpost)*(10.0L))) + (-((((_v)*(10.0L)) + ((_apost)*(_T)))*(_v*10.0L + ((_apost)*(_T)))))))) - (((((2.0L)*(_A))*((_ygpost) + (-((10.0L)*(_eps)))))*(10000.0L))*(100.0L))))))) + (-((0.0L) - (_v)))) + (-((0.0L) - (_T)));
+																		}
+																		else {
+																			return -1.0L;
+																		}
+																	}
+																	else {
+																		return -1.0L;
+																	}
+																}
+																else {
+																	return ((-1.0L)) + (-((0.0L) - (_T)));
+																}
+															}
+															else {
+																return ((-1.0L)) + (-((0.0L) - (_v)));
+															}
+														}
+														else {
+															return ((-1.0L)) + (-(fminl(fmaxl((_vlpost) - (_v), ((10.0L)*(_vlpost)) - (((10.0L)*(_v)) + ((_apost)*(_T)))), fminl(((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_A)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + ((((_vlpost)*(10.0L))*((_vlpost)*(10.0L))) + (-((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))))))) - (((((2.0L)*(_A))*((fabsl(_xgpost)) + (-((10.0L)*(_eps)))))*(10000.0L))*(100.0L)), ((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_A)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + ((((_vlpost)*(10.0L))*((_vlpost)*(10.0L))) + (-((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))))))) - (((((2.0L)*(_A))*((_ygpost) + (-((10.0L)*(_eps)))))*(10000.0L))*(100.0L))))));
+														}
+													}
+													else {
+														return ((-1.0L)) + (-(fminl(fmaxl((_v) - (_vhpost), (((10.0L)*(_v)) + ((_apost)*(_T))) - ((10.0L)*(_vhpost))), fminl(((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_B)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + (((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))) + (-(((10.0L)*(_vhpost))*((10.0L)*(_vhpost))))))) - (((((2.0L)*(_B))*((fabsl(_xgpost)) + (-((10.0L)*(_eps)))))*(10000.0L))*(100.0L)), ((((10000.0L) + ((((2.0L)*(_eps))*(fabsl(_kpost)))*(100.0L))) + (((_eps)*(_eps))*((_kpost)*(_kpost))))*(((_B)*(((((2.0L)*(_v))*(_T))*(10.0L)) + ((_apost)*((_T)*(_T))))) + (((((_v)*(10.0L)) + ((_apost)*(_T)))*(((_v)*(10.0L)) + ((_apost)*(_T)))) + (-(((10.0L)*(_vhpost))*((10.0L)*(_vhpost))))))) - (((((2.0L)*(_B))*((_ygpost) + (-((10.0L)*(_eps)))))*(10000.0L))*(100.0L))))));
+													}
+												}
+												else {
+													return ((-1.0L)) + (-((0.0L) - (((10.0L)*(_v)) + ((_apost)*(_T)))));
+												}
+											}
+											else {
+												return ((-1.0L)) + (-((_apost) - (_A)));
+											}
+										}
+										else {
+											return ((-1.0L)) + (-((-(_B)) - (_apost)));
+										}
+									}
+									else {
+										return ((-1.0L)) + (-(((_B)*(_T)) - ((10.0L)*((_vhpost) + (-(_vlpost))))));
+									}
+								}
+								else {
+									return ((-1.0L)) + (-(((_A)*(_T)) - ((10.0L)*((_vhpost) + (-(_vlpost))))));
+								}
+							}
+							else {
+								return ((-1.0L)) + (-((_vlpost) - (_vhpost)));
+							}
+						}
+						else {
+							return ((-1.0L)) + (-((0.0L) - (_vlpost)));
+						}
+					}
+					else {
+						return ((-1.0L)) + (-((((_kpost)*(((_xgpost)*(_xgpost)) + ((_ygpost)*(_ygpost)))) + (-((((2.0L)*(_xgpost))*(100.0L))*(10.0L)))) - ((((_kpost)*((_eps)*(_eps))) + ((200.0L)*(_eps)))*(100.0L))));
+					}
+				}
+				else {
+					return ((-1.0L)) + (-(((((_kpost)*((_eps)*(_eps))) + (-((200.0L)*(_eps))))*(100.0L)) - (((_kpost)*(((_xgpost)*(_xgpost)) + ((_ygpost)*(_ygpost)))) + (-((((2.0L)*(_xgpost))*(100.0L))*(10.0L))))));
+				}
+			}
+			else {
+				return ((-1.0L)) + (-(((fabsl(_kpost))*(_eps)) - (100.0L)));
+			}
+		}
+		else {
+			return ((-1.0L)) + (-((0.0L) - (_ygpost)));
+		}
+	}
+	else {
+		return ((-1.0L)) + (-(fminl(fmaxl((0.0L) - (_xgpost), (0.0L) - (_kpost)), fmaxl(_xgpost, _kpost))));
+	};
+}
+
 void Monitor::consts(double aT, double aeps) {
 	_consts = { aT,aeps };
 	assert(_outfile);
@@ -235,37 +331,41 @@ void Monitor::afterCtrl() {
 }
 
 const bool SIMP = true;
-
+const bool QUANT = false;
 bool Monitor::ctrlOk() {
-bool xk = (_xgpost >= 0 && _kpost >= 0) || (_xgpost <= 0 && _kpost <= 0);
-double lo = (_kpost*sq(_eps) - 200 * _eps) * 100;
-double mid = _kpost * (sq(_xgpost)+ sq(_ygpost)) - 2 * _xgpost * 100 * 10;
-double hi = (_kpost*sq(_eps) + 200 * _eps) * 100;
-bool circ = lo <= mid && mid <= hi;
-bool yg = _ygpost >= 0;
-bool vbound = 0 <= _vlpost && _vlpost <= _vhpost;
-bool abound = -_B <= _apost && _apost <= _A;
-bool vpos = 10 * _v + _apost * _T >= 0;
-double term1 = (10000 + 2 * _eps*abs(_kpost) * 100 + sq(_eps*_kpost));
-double termB = _v*_T * 20 * _B + _apost * _B*sq(_T);
-double termA = _v*_T * 20 * _A + _apost * _A*sq(_T);
-double lhs1 = term1 * (termB + (sq(_v * 10 + _apost * _T) - sq(10 * _vhpost)));
-double lhs2 = term1 * (termA + (sq(_vlpost * 10)- sq(_v * 10 + _apost * _T)));
-bool fancyHi =
-    (_v <= _vhpost
-        && (_apost <= 0
-		    || 10 * _v + _apost * _T <= 10 * _vhpost))
-	|| (lhs1 <= 2 * _B*(abs(_xgpost) - 10 * _eps) * 10000 * 100)
-	|| (lhs1 <= 2 * _B*(_ygpost - 10 * _eps) * 10000 * 100);
-bool fancyLo =
-	(_vlpost <= _v 
-		&& (_apost >= 0 
-			|| 10 * _v + _apost * _T >= 10 * _vlpost)) 
-	|| (lhs2 <= 2 * _A*(abs(_xgpost) - 10 * _eps) * 10000 * 100)
-	|| (lhs2 <= 2 * _A*(_ygpost - 10 * _eps) * 10000 * 100);
-bool signs = (_v >= 0 && 0 <= _T) && _tpost == 0 && _vpost == _v;
-double cm = xk && circ && yg && vbound && abound && vpos && fancyHi && fancyLo && signs;
-return cm;
+	if (QUANT) {
+		auto bd = boundaryDist();
+		return bd >= 0.0L;
+	}
+	bool xk = (_xgpost >= 0 && _kpost >= 0) || (_xgpost <= 0 && _kpost <= 0);
+	double lo = (_kpost*sq(_eps) - 200 * _eps) * 100;
+	double mid = _kpost * (sq(_xgpost)+ sq(_ygpost)) - 2 * _xgpost * 100 * 10;
+	double hi = (_kpost*sq(_eps) + 200 * _eps) * 100;
+	bool circ = lo <= mid && mid <= hi;
+	bool yg = _ygpost >= 0;
+	bool vbound = 0 <= _vlpost && _vlpost <= _vhpost;
+	bool abound = -_B <= _apost && _apost <= _A;
+	bool vpos = 10 * _v + _apost * _T >= 0;
+	double term1 = (10000 + 2 * _eps*abs(_kpost) * 100 + sq(_eps*_kpost));
+	double termB = _v*_T * 20 * _B + _apost * _B*sq(_T);
+	double termA = _v*_T * 20 * _A + _apost * _A*sq(_T);
+	double lhs1 = term1 * (termB + (sq(_v * 10 + _apost * _T) - sq(10 * _vhpost)));
+	double lhs2 = term1 * (termA + (sq(_vlpost * 10)- sq(_v * 10 + _apost * _T)));
+	bool fancyHi =
+		(_v <= _vhpost
+			&& (_apost <= 0
+				|| 10 * _v + _apost * _T <= 10 * _vhpost))
+		|| (lhs1 <= 2 * _B*(abs(_xgpost) - 10 * _eps) * 10000 * 100)
+		|| (lhs1 <= 2 * _B*(_ygpost - 10 * _eps) * 10000 * 100);
+	bool fancyLo =
+		(_vlpost <= _v 
+			&& (_apost >= 0 
+				|| 10 * _v + _apost * _T >= 10 * _vlpost)) 
+		|| (lhs2 <= 2 * _A*(abs(_xgpost) - 10 * _eps) * 10000 * 100)
+		|| (lhs2 <= 2 * _A*(_ygpost - 10 * _eps) * 10000 * 100);
+	bool signs = (_v >= 0 && 0 <= _T) && _tpost == 0 && _vpost == _v;
+	double cm = xk && circ && yg && vbound && abound && vpos && fancyHi && fancyLo && signs;
+	return cm;
 }
 
 void Monitor::ctrlErr(std::string &buf) {
@@ -273,6 +373,7 @@ void Monitor::ctrlErr(std::string &buf) {
 	num mid = _kpost * (sq(_xgpost) + sq(_ygpost)) - 2 * _xgpost;
 	num hi = _k      * (sq(_xgpost) + sq(_ygpost)) + 2 * _eps;
 
+	buf = "OK";
 	double kp = (1 + 2 * _eps*_kpost + sq(_eps*_kpost));
 	double km = (1 - 2 * _eps*_kpost + sq(_eps*_kpost));
 	double ay = abs(_ygpost) - _eps, ax = abs(_xgpost) - _eps;
@@ -486,6 +587,7 @@ size_t Monitor::age() {
 }
 
 bool Monitor::plantOk() {
+	if(QUANT) return true;
 	double _a = _apost;
 	bool time = _tpost >= 0 && _tpost <= _T;
 	double lo = (_k*sq(_eps) - 2 * _eps);
@@ -523,17 +625,6 @@ bool Monitor::plantOk() {
 	bool forward = _vpost >= 0;
 	bool pm = time && circ && alo && ahi && vhi && vlo && forward;
 	return pm;
-/*	num lo  = _k * (sq(_xgpost) + sq(_ygpost)) - 2 * _eps;
-	num mid = _kpost * (sq(_xgpost) + sq(_ygpost)) - 2 * _xgpost;
-	num hi  = _k * (sq(_xgpost) + sq(_ygpost)) + 2 * _eps;
-
-	bool front = 0 <= _ygpost;
-	bool circ = lo <= mid && mid <= hi;
-	bool monotone = _xgpost * _xg <= sq(_xg);
-	bool forward = 0 <= _vpost;
-	bool timely = _tpost <= _T;
-	bool pm = front && circ && monotone && forward && timely;*/
-	//return pm;
 }
 
 

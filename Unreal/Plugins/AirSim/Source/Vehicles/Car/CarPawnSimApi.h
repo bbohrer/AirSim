@@ -77,7 +77,7 @@ private:
 	void aTo(double r, double cornX, double cornY, double fromX, double fromY, double toX, double toY, double f, double g, bool ccw);
 	void parcTo(double rad, pt2 to, pt2 center, pt2 from, bool cw);
 private:
-    std::unique_ptr<msr::airlib::CarApiBase> vehicle_api_;
+    std::unique_ptr<CarPawnApi> vehicle_api_;
     std::vector<std::string> vehicle_api_messages_;
 
     //storing reference from pawn

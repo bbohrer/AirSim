@@ -333,6 +333,7 @@ const int PAINT_MAT_INDEX = 2;
 const int UNSAFE_MAT_INDEX = 6;
 
 void ACarPawn::updateMaterial(double measure) {
+	return;
 	USkeletalMeshComponent* mesh = GetMesh();
 	if (NULL == unsafe_mats_[0] || NULL == safe_mats_[0]) {
 		FLinearColor 

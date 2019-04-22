@@ -175,6 +175,16 @@ struct NodeDatum {
 		return tan.unit();
 	}
 
+	// Proof invariants assume Y coordinate further than X, detect when this is broken
+	// so we can do splits to restore the invariant
+	bool isExtreme(Eigen::Quaternion<float, 2> orientation, pt2 pos2) {
+		auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
+		pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
+		pt2 rel = (end - pos2);
+		pt2 g = pt2(0, 0) - rel.rebase(dir2); // Translates to vehicle-oriented coordinates
+		return fabs(g.x) > (fabs(g.y) + 1.0e-5);
+	}
+
 	// Distance of point to the section
 	// Tricky geometry because this is distance to *the nearest part of the section*
 	double distance(pt2 p) {

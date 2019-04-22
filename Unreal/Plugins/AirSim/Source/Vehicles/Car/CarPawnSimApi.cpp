@@ -221,7 +221,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 	double MSPF_est = 1.0 / FPS_est;
 	if (!m.isSaved())
 		m.saveTo("C:\\Users\\Brandon\\Documents\\out.csv");
-	m.consts(MSPF_est,3.0);
+	m.consts(MSPF_est,1.0);
 	// Compute and log initial control values
 	auto accel = 0; // Not accelerating yet
 	// Velocity limits *by time we reach waypoint*
@@ -238,7 +238,7 @@ CarPawnSimApi::CarPawnSimApi(const Params& params,
 		lastDir = dir2;
 		double altR = (rel.x*rel.x + rel.y*rel.y) / (2.0*rel.x);
 		double altK = 1.0 / altR;
-		//altK = true ? k : altK;
+		altK = true ? k : altK;
 		if (rel.y <= 0.05) {
 			int x = 2;
 		}
@@ -391,7 +391,9 @@ void CarPawnSimApi::updateCarControls()
 				m._finished = true;
 		}
 		plan_.getNode(curNode_, curND_);
-
+		while (curND_.isExtreme(orientation,pos2)) {
+			curND_ = curND_.first();
+		}
 		pt2 way = curND_.end;
 		// Print angular velocity ON-SCREEN for useful debugging
 		char buf[256];
@@ -461,8 +463,8 @@ void CarPawnSimApi::updateCarControls()
 			auto dvec = orientation._transformVector({ (float) 0.0, 1.0, 0.0 });
 			pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
 			pt2 rel = (way - pos2);
+			pt2 g = pt2(0, 0) - rel.rebase(dir2); // Translates to vehicle-oriented coordinates
 			pt2 gOld = pt2(0,0)-rel.rebase(lastDir);
-			pt2 g = pt2(0,0)-rel.rebase(dir2); // Translates to vehicle-oriented coordinates
 			m.sense(ep, speed, gOld.x, gOld.y);
 			if (gOld.y <= 0.05) {
 				int x = 2;
@@ -513,7 +515,9 @@ void CarPawnSimApi::updateCarControls()
 				m._finished = true;
 		}
 		plan_.getNode(curNode_, curND_);
-
+		while (curND_.isExtreme(orientation,pos2)) {
+			curND_ = curND_.first();
+		}
 		pt2 way = curND_.end;
 		pt2 wayDiff = curND_.tangentAt(pos2, curND_.isCcw);
 		//pt2 wayDiff = (way - pos2).unit(); // relative
@@ -539,7 +543,7 @@ void CarPawnSimApi::updateCarControls()
 			close = vv >= 0 && (((vv * vv >= dd / (2.0f * BRAKE_MAX))) || st.speed > HARD_LIMIT);
 		}
 		ctrlTicks++;
-		if (ctrlTicks % 1 == 0) {
+		if (ctrlTicks % 15 == 0) {
 			slowClose = close;
 		}
 		if (!cruiseDirSet) {
@@ -660,13 +664,13 @@ void CarPawnSimApi::updateCarControls()
 			} else {
 				altK = (2.0*g.x) / (g.x*g.x + g.y*g.y);
 			}
-			m.sense(ep, speed, gOld.x, gOld.y);
+			m.sense(ep, speed, g.x, g.y);
 			if (m._extPlantMon) {
 				isSafe = false;
 			}
 			m.afterSense();
 
-			//altK = true ? k : altK;
+			altK = true ? k : altK;
 			m.ctrl(a, altK,0, vLo, vHi, g.x, g.y);
 			snprintf(buf, 256, "%f", a);
 			if (m._extCtrlMon || !m.ctrlOk()) {

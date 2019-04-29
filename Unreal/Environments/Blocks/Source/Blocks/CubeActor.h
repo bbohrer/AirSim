@@ -1,8 +1,8 @@
 #pragma once
 #include "AirBlueprintLib.h"
 #include "UnrealSensors/UnrealSensorFactory.h"
-#include "safety/Plan.hpp"
-#include "common/Geom.hpp"
+#include "Plan.hpp"
+#include "Geom.hpp"
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
 #include <exception>

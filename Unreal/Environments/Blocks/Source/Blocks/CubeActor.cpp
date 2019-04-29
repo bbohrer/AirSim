@@ -2,7 +2,7 @@
 * This is used for visual in-game debugging of plans
 */
 
-#include "safety/CubeActor.h"
+#include "CubeActor.h"
 #include "ConstructorHelpers.h"
 #include "Engine.h"
 

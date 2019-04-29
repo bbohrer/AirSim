@@ -18,9 +18,9 @@
 
 #include "AirBlueprintLib.h"
 #include "UnrealSensors/UnrealSensorFactory.h"
-#include "safety/Plan.hpp"
-#include "safety/CubeActor.h"
-#include "common/Geom.hpp"
+#include "Plan.hpp"
+#include "CubeActor.h"
+#include "Geom.hpp"
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
 #include <exception>

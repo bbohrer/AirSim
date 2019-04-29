@@ -608,7 +608,7 @@ void AExperiment::Tick(float DeltaTime)
 		snprintf(buf, 256, "@(%f,%f)  ->(%f,%f)", pos2.x, pos2.y, dir2.x, dir2.y);
 
 		snprintf(buf, 256, "%d (%f)", curNode_, curND_.endDist(pos2, dir2, speed));
-		UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
+		//TODO linker error: UAirBlueprintLib::LogMessageString("Nav: ", buf, LogDebugLevel::Informational);
 
 		current_controls_ = ai_controls;
 
@@ -636,13 +636,13 @@ void AExperiment::Tick(float DeltaTime)
 		static double lastBound = 1.0;
 		if (m._finished) {
 			snprintf(buf, 256, "%f", (double)m.ctrl_fails / (double)m.ctrl_ticks);
-			UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
+			//TODO linker error: UAirBlueprintLib::LogMessageString("CTRL: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%f", (double)m.phys_fails / (double)m.phys_ticks);
-			UAirBlueprintLib::LogMessageString("PLANT: ", buf, LogDebugLevel::Informational);
+			//TODO linker error: UAirBlueprintLib::LogMessageString("PLANT: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%f", (double)m._velAvg);
-			UAirBlueprintLib::LogMessageString("VEL: ", buf, LogDebugLevel::Informational);
+			//TODO linker error: UAirBlueprintLib::LogMessageString("VEL: ", buf, LogDebugLevel::Informational);
 			snprintf(buf, 256, "%f", (double)m.boundaryDist());
-			UAirBlueprintLib::LogMessageString("BOUND: ", buf, LogDebugLevel::Informational);
+			//TODO linker error: UAirBlueprintLib::LogMessageString("BOUND: ", buf, LogDebugLevel::Informational);
 		}
 
 		const bool QUANT = false;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AirBlueprintLib.h"
-#include "common/Geom.hpp"
+#include "Geom.hpp"
 #include "UnrealSensors/UnrealSensorFactory.h"
 //#include "CarPawnApi.h"
 #include <exception>
@@ -177,40 +177,12 @@ struct NodeDatum {
 
 	// Proof invariants assume Y coordinate further than X, detect when this is broken
 	// so we can do splits to restore the invariant
-	int isExtreme(Eigen::Quaternion<float, 2> orientation, pt2 pos2, double v) {
-		//auto succs = plan_.getSuccs(curNode_);
-		//auto next = succs[0];
-		//NodeDatum nextNode;
-		//plan_.getNode(next, nextNode);
-		//double k = 1.0 / nextNode.signedRad();
-		double eps = 1.0;
-		pt2 rel = end - pos2;
+	bool isExtreme(Eigen::Quaternion<float, 2> orientation, pt2 pos2) {
 		auto dvec = orientation._transformVector({ (float) 1.0, 0.0, 0.0 });
 		pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
-		pt2 g = rel.rebase(dir2); // Translates to vehicle-oriented coordinates 
-
-		//double dev = m.pathDevOf(k, eps, g.x, g.y);
-		//double devMargin, distMargin;
-		double theDist = first().endDist(pos2, dir2, v);
-
-		//pt2 dir2 = pt2(dvec.x(), dvec.y()).unit();
-		//pt2 rel = (end - pos2);
-		//pt2 g = pt2(0, 0) - rel.rebase(dir2); // Translates to vehicle-oriented coordinates
-		bool extremeAbs = fabs(g.x) > (fabs(g.y) + 1.0e-5);
-		double DIST_LO = 1.0;
-		//double DIST_HI = 20.0; // for PD
-		double DIST_HI = 40.0;
-		double dist = (end - start).mag();
-		bool ret  = dist >= DIST_LO && (dist >= DIST_HI || extremeAbs);
-		if (ret) {
-			if (theDist <= 0.1) {
-				return 2;
-			}
-			else {
-				return 1;
-			}
-		}
-		return 0;
+		pt2 rel = (end - pos2);
+		pt2 g = pt2(0, 0) - rel.rebase(dir2); // Translates to vehicle-oriented coordinates
+		return fabs(g.x) > (fabs(g.y) + 1.0e-5);
 	}
 
 	// Distance of point to the section
